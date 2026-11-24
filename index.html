@@ -53,6 +53,14 @@
     .editor-area { flex: 1; width: 100%; min-height: 520px; border: none !important; background: transparent !important; resize: none; font-family: var(--font-serif); font-size: 18px; line-height: 1.85; color: var(--ink-primary); padding: 0 !important; }
     .editor-area.lang-ar { font-family: var(--font-arabic); font-size: 22px; line-height: 2.0; }
     .editor-area.lang-ur { font-family: var(--font-urdu); font-size: 20px; line-height: 2.35; }
+    .editor-area.located-flash { box-shadow: inset 0 0 0 2px var(--ink-primary); border-radius: 3px; }
+    .match-summary-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 9px; background: var(--bg-subtle); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); font-size: 11.5px; font-weight: 500; color: var(--ink-primary); }
+    .match-item.located { border-color: var(--ink-primary); background: #F7F5EE; }
+    .modal-box.wide { max-width: 680px; max-height: 85vh; overflow: hidden; }
+    .export-changes-scroll { overflow-y: auto; max-height: 48vh; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+    .export-change-entry { border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 9px 11px; background: var(--bg-canvas); display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
+    .export-change-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--ink-muted); }
+    .export-summary-strip { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 8px 11px; background: var(--bg-subtle); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); font-size: 12px; }
     .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
     .chip { font-size: 11.5px; padding: 4px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); background: var(--bg-canvas); color: var(--ink-secondary); cursor: pointer; transition: all 0.12s ease; }
     .chip:hover { border-color: var(--ink-primary); color: var(--ink-primary); background: var(--bg-surface); }
@@ -205,14 +213,19 @@
         </div>
         <div class="field-group">
           <div style="display: flex; gap: 6px;">
-            <input type="text" id="searchWordInput" placeholder="Find word (e.g., organization)" />
+            <input type="text" id="searchWordInput" placeholder="Find word or part (e.g., organ / organization)" />
+            <select id="matchModeSelect" class="minimal-select" title="Match Mode">
+              <option value="partial">Partial Word</option>
+              <option value="full">Full Word</option>
+            </select>
             <button type="button" class="btn" id="findWordBtn">Find</button>
           </div>
           <div style="display: flex; gap: 6px;">
             <input type="text" id="replaceWordInput" placeholder="Replacement (e.g., organisation)" />
             <button type="button" class="btn" id="queueAllMatchesBtn">Queue All</button>
           </div>
-          <div id="wordMatchesList" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto;"></div>
+          <div id="wordMatchCountBanner" style="display: none;"></div>
+          <div id="wordMatchesList" style="display: flex; flex-direction: column; gap: 6px; max-height: 190px; overflow-y: auto;"></div>
         </div>
       </div>
       <div class="divider"></div>
@@ -241,6 +254,20 @@
       </div>
       <p style="font-size: 12px; color: var(--ink-secondary);">Restore your manuscript to any earlier point before an applied batch of changes.</p>
       <div id="historyList" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;"></div>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="exportReviewModal">
+    <div class="modal-box wide">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+        <strong style="font-family: var(--font-display); font-size: 18px;">Pre-Export Review: Changes Made to File</strong>
+        <button type="button" class="btn btn-xs" id="closeExportReviewBtn">Cancel</button>
+      </div>
+      <div class="export-summary-strip" id="exportSummaryStrip"></div>
+      <div class="export-changes-scroll" id="exportChangesList"></div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; padding-top: 6px; border-top: 1px solid var(--border-hairline);">
+        <button type="button" class="btn" id="cancelExportBtn">Back to Editor</button>
+        <button type="button" class="btn btn-primary" id="confirmExportBtn">Proceed &amp; Export File</button>
+      </div>
     </div>
   </div>
   <div class="modal-backdrop" id="settingsModal">
@@ -278,7 +305,7 @@
       geminiGrounding: localStorage.getItem('qs_gemini_grounding') !== 'false',
       restrictToPubs: localStorage.getItem('qs_restrict_pubs') === 'true',
       publications: JSON.parse(localStorage.getItem('qs_publications') || 'null') || DEFAULT_PUBLICATIONS,
-      queue: [], undoStack: [], redoStack: [], factReport: []
+      queue: [], undoStack: [], redoStack: [], factReport: [], appliedLog: []
     };
     const editor = document.getElementById('editor');
     const docTitle = document.getElementById('docTitle');
@@ -431,7 +458,7 @@
           docTitle.value = file.name.replace(/\.[^/.]+$/, '');
         }
         document.getElementById('fileIndicator').textContent = `Active file: ${file.name}`;
-        state.queue = []; renderQueue(); updateCounts();
+        state.queue = []; state.appliedLog = []; renderQueue(); updateCounts();
         showToast(`Imported "${file.name}"`);
       } catch (err) {
         showToast('Could not read file: ' + err.message);
@@ -457,7 +484,7 @@
       const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
       if (file) await importSelectedFile(file);
     });
-    document.getElementById('exportBtn').addEventListener('click', async () => {
+    async function executeFileExport() {
       const format = document.getElementById('exportFormat').value;
       const baseName = (docTitle.value.trim() || 'manuscript').replace(/[^\w\u0600-\u06FF-]+/g, '_');
       const content = editor.value;
@@ -466,12 +493,48 @@
         const isRtl = state.lang === 'ar' || state.lang === 'ur';
         const paragraphs = content.split(/\n/).map(line => new Paragraph({ bidirectional: isRtl, children: [new TextRun({ text: line, rightToLeft: isRtl })] }));
         const doc = new Document({ sections: [{ children: [...(docTitle.value.trim() ? [new Paragraph({ bidirectional: isRtl, children: [new TextRun({ text: docTitle.value.trim(), bold: true, size: 32, rightToLeft: isRtl })] })] : []), ...paragraphs] }] });
-        triggerDownload(await Packer.toBlob(doc), `${baseName}.docx`);
+        triggerDownload(await Packer.toBlob(doc), `${baseName}.${format}`);
       } else {
         const header = docTitle.value.trim() ? `# ${docTitle.value.trim()}\n\n` : '';
         triggerDownload(new Blob([header + content], { type: 'text/plain;charset=utf-8' }), `${baseName}.${format}`);
       }
       showToast(`Exported ${baseName}.${format}`);
+    }
+
+    function openExportReviewModal() {
+      const format = document.getElementById('exportFormat').value.toUpperCase();
+      const baseName = (docTitle.value.trim() || 'manuscript').replace(/[^\w\u0600-\u06FF-]+/g, '_');
+      const summaryStrip = document.getElementById('exportSummaryStrip');
+      const listEl = document.getElementById('exportChangesList');
+      const totalChanges = state.appliedLog.length;
+
+      summaryStrip.innerHTML = `<span><strong>Target File:</strong> ${escapeHtml(baseName)}.${escapeHtml(format.toLowerCase())}</span><span><strong>Total Applied Changes:</strong> ${totalChanges}</span>`;
+      listEl.innerHTML = '';
+
+      if (!totalChanges) {
+        listEl.innerHTML = '<div style="padding: 18px 14px; text-align: center; color: var(--ink-muted); border: 1px dashed var(--border-hairline); border-radius: var(--radius-sm);">No changes have been applied to this document yet. You can still export the current draft below.</div>';
+      } else {
+        state.appliedLog.forEach((entry, idx) => {
+          const card = document.createElement('div');
+          card.className = 'export-change-entry';
+          card.innerHTML = `<div class="export-change-meta"><span><strong>Change #${idx + 1}</strong> · ${escapeHtml(entry.reason || 'Applied edit')}</span><span>${escapeHtml(entry.timestamp || '')}</span></div><div class="diff-box diff-before">${escapeHtml(entry.before)}</div><div class="diff-box diff-after">${escapeHtml(entry.after)}</div>`;
+          listEl.appendChild(card);
+        });
+      }
+
+      document.getElementById('exportReviewModal').classList.add('open');
+    }
+
+    function closeExportReviewModal() {
+      document.getElementById('exportReviewModal').classList.remove('open');
+    }
+
+    document.getElementById('exportBtn').addEventListener('click', openExportReviewModal);
+    document.getElementById('closeExportReviewBtn').addEventListener('click', closeExportReviewModal);
+    document.getElementById('cancelExportBtn').addEventListener('click', closeExportReviewModal);
+    document.getElementById('confirmExportBtn').addEventListener('click', async () => {
+      closeExportReviewModal();
+      await executeFileExport();
     });
     function triggerDownload(blob, filename) {
       const url = URL.createObjectURL(blob); const a = document.createElement('a');
@@ -548,24 +611,87 @@
     function escapeRegExp(str) {
       return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
-    function buildItemizedWordReplacements(text, findTerm, replaceTerm, reasonLabel) {
-      const escaped = escapeRegExp(findTerm);
-      const isWord = /^[A-Za-z0-9_]+$/.test(findTerm);
-      const regex = new RegExp(isWord ? `\\b${escaped}\\b` : escaped, 'gi');
-      let m; const items = [];
+    function buildWordSearchRegex(query, matchMode = 'partial') {
+      const escaped = escapeRegExp(query);
+      if (matchMode === 'full') {
+        const hasLatinWordChar = /[A-Za-z0-9_]/.test(query);
+        if (hasLatinWordChar) {
+          const prefixBoundary = /^[A-Za-z0-9_]/.test(query) ? '(?<![A-Za-z0-9_])' : '(?<!\S)';
+          const suffixBoundary = /[A-Za-z0-9_]$/.test(query) ? '(?![A-Za-z0-9_])' : '(?!\S)';
+          return new RegExp(`${prefixBoundary}${escaped}${suffixBoundary}`, 'gi');
+        }
+        return new RegExp(`(?<![\p{L}\p{N}_])${escaped}(?![\p{L}\p{N}_])`, 'giu');
+      }
+      return new RegExp(escaped, 'giu');
+    }
+
+    function locateInDocument(charIndex, length, rowEl = null) {
+      if (typeof charIndex !== 'number' || charIndex < 0) return;
+      const safeEnd = Math.min(editor.value.length, charIndex + Math.max(1, length || 1));
+      editor.focus();
+      editor.setSelectionRange(charIndex, safeEnd);
+
+      const textBefore = editor.value.slice(0, charIndex);
+      const lineCount = textBefore.split('\n').length;
+      const totalLines = Math.max(1, editor.value.split('\n').length);
+      const lineHeight = parseFloat(getComputedStyle(editor).lineHeight) || 28;
+      const targetScroll = Math.max(0, (lineCount - 3) * lineHeight);
+      editor.scrollTop = targetScroll;
+
+      const sheetContainer = document.querySelector('.sheet-container');
+      if (sheetContainer) {
+        const ratio = Math.min(1, lineCount / totalLines);
+        const sheetTarget = Math.max(0, ratio * Math.max(0, sheetContainer.scrollHeight - sheetContainer.clientHeight) - 60);
+        sheetContainer.scrollTo({ top: sheetTarget, behavior: 'smooth' });
+      }
+
+      editor.classList.remove('located-flash');
+      void editor.offsetWidth;
+      editor.classList.add('located-flash');
+      setTimeout(() => editor.classList.remove('located-flash'), 1200);
+
+      document.querySelectorAll('#wordMatchesList .match-item').forEach(el => el.classList.remove('located'));
+      if (rowEl) rowEl.classList.add('located');
+      showToast(`Located occurrence at character ${charIndex + 1} (line ${lineCount}).`);
+    }
+
+    function collectWordMatches(text, query, matchMode = 'partial') {
+      const regex = buildWordSearchRegex(query, matchMode);
+      const matches = [];
+      let m;
       while ((m = regex.exec(text)) !== null) {
-        const idx = m.index; const found = m[0]; const repCased = matchCase(found, replaceTerm);
-        if (found === repCased) continue;
-        const start = Math.max(0, idx - 32); const end = Math.min(text.length, idx + found.length + 32);
-        items.push({
-          id: 'item_' + idx + '_' + items.length + '_' + Math.random().toString(36).slice(2, 5),
-          before: text.slice(start, end),
-          after: text.slice(start, idx) + repCased + text.slice(idx + found.length, end),
-          exactFind: found, exactReplace: repCased, charIndex: idx,
-          reason: reasonLabel || `Replace "${found}" → "${repCased}"`,
-          mode: 'exact', selected: true
+        if (!m[0]) { regex.lastIndex++; continue; }
+        matches.push({
+          index: m.index,
+          foundWord: m[0],
+          length: m[0].length
         });
       }
+      return matches;
+    }
+
+    function buildItemizedWordReplacements(text, findTerm, replaceTerm, reasonLabel, matchMode = 'partial') {
+      const matches = collectWordMatches(text, findTerm, matchMode);
+      const items = [];
+      matches.forEach((mt, i) => {
+        const idx = mt.index;
+        const found = mt.foundWord;
+        const repCased = matchCase(found, replaceTerm);
+        if (found === repCased) return;
+        const start = Math.max(0, idx - 32);
+        const end = Math.min(text.length, idx + found.length + 32);
+        items.push({
+          id: 'item_' + idx + '_' + i + '_' + Math.random().toString(36).slice(2, 5),
+          before: text.slice(start, end),
+          after: text.slice(start, idx) + repCased + text.slice(idx + found.length, end),
+          exactFind: found,
+          exactReplace: repCased,
+          charIndex: idx,
+          reason: reasonLabel || `Replace "${found}" → "${repCased}" (${matchMode})`,
+          mode: 'exact',
+          selected: true
+        });
+      });
       return items;
     }
     function parseExplicitReplacementCommand(cmd) {
@@ -918,51 +1044,127 @@
       if (!selectedItems.length) return;
       pushSnapshot(`Applied ${selectedItems.length} selected change(s)`);
       let doc = editor.value; let appliedCount = 0;
+      const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const indexed = selectedItems.filter(i => typeof i.charIndex === 'number' && i.exactFind);
       const textual = selectedItems.filter(i => !(typeof i.charIndex === 'number' && i.exactFind));
       indexed.sort((a, b) => b.charIndex - a.charIndex).forEach(item => {
         if (doc.slice(item.charIndex, item.charIndex + item.exactFind.length) === item.exactFind) {
-          doc = doc.slice(0, item.charIndex) + item.exactReplace + doc.slice(item.charIndex + item.exactFind.length); appliedCount++;
-        } else if (item.before && doc.includes(item.before)) { doc = doc.replace(item.before, item.after); appliedCount++; }
+          doc = doc.slice(0, item.charIndex) + item.exactReplace + doc.slice(item.charIndex + item.exactFind.length);
+          appliedCount++;
+          state.appliedLog.push({
+            id: 'log_' + Date.now() + '_' + appliedCount + '_' + Math.random().toString(36).slice(2, 5),
+            timestamp: nowTime,
+            before: item.exactFind,
+            after: item.exactReplace,
+            reason: item.reason || 'Exact replacement',
+            mode: item.mode || 'exact'
+          });
+        } else if (item.before && doc.includes(item.before)) {
+          doc = doc.replace(item.before, item.after);
+          appliedCount++;
+          state.appliedLog.push({
+            id: 'log_' + Date.now() + '_' + appliedCount + '_' + Math.random().toString(36).slice(2, 5),
+            timestamp: nowTime,
+            before: item.before,
+            after: item.after,
+            reason: item.reason || 'Text replacement',
+            mode: item.mode || 'edit'
+          });
+        }
       });
       textual.forEach(item => {
-        if (!item.before) { doc = doc.trim() ? `${doc.trim()}\n\n${item.after}` : item.after; appliedCount++; }
-        else if (doc.includes(item.before)) { doc = doc.replace(item.before, item.after); appliedCount++; }
+        if (!item.before) {
+          doc = doc.trim() ? `${doc.trim()}\n\n${item.after}` : item.after;
+          appliedCount++;
+          state.appliedLog.push({
+            id: 'log_' + Date.now() + '_' + appliedCount + '_' + Math.random().toString(36).slice(2, 5),
+            timestamp: nowTime,
+            before: '(Appended to end)',
+            after: item.after,
+            reason: item.reason || 'Addition',
+            mode: item.mode || 'addition'
+          });
+        } else if (doc.includes(item.before)) {
+          doc = doc.replace(item.before, item.after);
+          appliedCount++;
+          state.appliedLog.push({
+            id: 'log_' + Date.now() + '_' + appliedCount + '_' + Math.random().toString(36).slice(2, 5),
+            timestamp: nowTime,
+            before: item.before,
+            after: item.after,
+            reason: item.reason || 'Editorial edit',
+            mode: item.mode || 'edit'
+          });
+        }
       });
       editor.value = doc; state.queue = state.queue.filter(i => !i.selected);
       renderQueue(); updateCounts(); showToast(`Applied ${appliedCount} change(s). Click Undo anytime to revert.`);
     });
     function findWordOccurrences() {
       const query = document.getElementById('searchWordInput').value.trim();
-      const container = document.getElementById('wordMatchesList'); container.innerHTML = '';
+      const matchMode = document.getElementById('matchModeSelect').value;
+      const banner = document.getElementById('wordMatchCountBanner');
+      const container = document.getElementById('wordMatchesList');
+      container.innerHTML = '';
+      banner.style.display = 'none';
+      banner.innerHTML = '';
       if (!query) return;
-      const escaped = escapeRegExp(query);
-      const isWord = /^[A-Za-z0-9_]+$/.test(query);
-      const regex = new RegExp(isWord ? `\\b${escaped}\\b` : escaped, 'gi');
-      const text = editor.value; let m; let count = 0;
-      while ((m = regex.exec(text)) !== null) {
-        count++; const idx = m.index; const foundWord = m[0];
-        const start = Math.max(0, idx - 28); const end = Math.min(text.length, idx + foundWord.length + 28);
+
+      const text = editor.value;
+      const matches = collectWordMatches(text, query, matchMode);
+      const count = matches.length;
+      const modeLabel = matchMode === 'full' ? 'Full Word' : 'Partial Word';
+
+      banner.style.display = 'block';
+      banner.innerHTML = `<div class="match-summary-bar"><span>Found in <strong>${count}</strong> ${count === 1 ? 'place' : 'places'} (${modeLabel})</span><span style="font-size:10.5px;color:var(--ink-secondary);">Click an item to locate</span></div>`;
+
+      if (!count) {
+        container.innerHTML = `<div style="font-size:11.5px;color:var(--ink-muted);">No ${modeLabel.toLowerCase()} matches found for "${escapeHtml(query)}".</div>`;
+        return;
+      }
+
+      matches.forEach((mt, i) => {
+        const matchNum = i + 1;
+        const idx = mt.index;
+        const foundWord = mt.foundWord;
+        const lineNum = text.slice(0, idx).split('\n').length;
+        const start = Math.max(0, idx - 28);
+        const end = Math.min(text.length, idx + foundWord.length + 28);
         const beforeCtx = text.slice(start, end);
-        const row = document.createElement('div'); row.className = 'match-item';
-        row.innerHTML = `<div>…${escapeHtml(text.slice(start, idx))}<mark>${escapeHtml(foundWord)}</mark>${escapeHtml(text.slice(idx + foundWord.length, end))}…</div><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:11px;color:var(--ink-muted);">Match #${count}</span><button type="button" class="btn btn-xs">Queue This One</button></div>`;
-        row.querySelector('button').addEventListener('click', () => {
+        const row = document.createElement('div');
+        row.className = 'match-item';
+        row.style.cursor = 'pointer';
+        row.title = 'Click to jump to this occurrence in the document';
+        row.innerHTML = `<div>…${escapeHtml(text.slice(start, idx))}<mark>${escapeHtml(foundWord)}</mark>${escapeHtml(text.slice(idx + foundWord.length, end))}…</div><div style="display:flex;justify-content:space-between;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--ink-muted);">Place #${matchNum} · Line ${lineNum}</span><button type="button" class="btn btn-xs">Queue This One</button></div>`;
+        row.addEventListener('click', (e) => {
+          if (e.target.tagName === 'BUTTON') return;
+          locateInDocument(idx, foundWord.length, row);
+        });
+        row.querySelector('button').addEventListener('click', (e) => {
+          e.stopPropagation();
+          locateInDocument(idx, foundWord.length, row);
           const rep = document.getElementById('replaceWordInput').value.trim();
           if (!rep) { showToast('Enter a replacement word first.'); return; }
           const repCased = matchCase(foundWord, rep);
-          state.queue.push({ id: 'word_' + idx, before: beforeCtx, after: text.slice(start, idx) + repCased + text.slice(idx + foundWord.length, end), exactFind: foundWord, exactReplace: repCased, charIndex: idx, reason: `Replace "${foundWord}" → "${repCased}"`, mode: 'exact', selected: true });
-          renderQueue(); showToast(`Queued occurrence #${count}`);
+          state.queue.push({ id: 'word_' + idx + '_' + matchNum, before: beforeCtx, after: text.slice(start, idx) + repCased + text.slice(idx + foundWord.length, end), exactFind: foundWord, exactReplace: repCased, charIndex: idx, reason: `Replace "${foundWord}" → "${repCased}" (${modeLabel})`, mode: 'exact', selected: true });
+          renderQueue(); showToast(`Queued occurrence #${matchNum}`);
         });
         container.appendChild(row);
-      }
-      if (!count) container.innerHTML = `<div style="font-size:11.5px;color:var(--ink-muted);">No occurrences of "${escapeHtml(query)}" found.</div>`;
+      });
     }
     document.getElementById('findWordBtn').addEventListener('click', findWordOccurrences);
+    document.getElementById('searchWordInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); findWordOccurrences(); }
+    });
+    document.getElementById('matchModeSelect').addEventListener('change', () => {
+      if (document.getElementById('searchWordInput').value.trim()) findWordOccurrences();
+    });
     document.getElementById('queueAllMatchesBtn').addEventListener('click', () => {
       const query = document.getElementById('searchWordInput').value.trim();
       const rep = document.getElementById('replaceWordInput').value.trim();
+      const matchMode = document.getElementById('matchModeSelect').value;
       if (!query || !rep) { showToast('Enter both a search word and a replacement word.'); return; }
-      const addedItems = buildItemizedWordReplacements(editor.value, query, rep, `Replace "${query}" → "${rep}"`);
+      const addedItems = buildItemizedWordReplacements(editor.value, query, rep, `Replace "${query}" → "${rep}" (${matchMode})`, matchMode);
       state.queue.push(...addedItems); renderQueue();
       showToast(`Queued ${addedItems.length} occurrence(s) in itemized list.`);
     });
