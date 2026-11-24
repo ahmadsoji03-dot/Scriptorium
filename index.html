@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Qalam &amp; Scriptorium — Editorial Writing Studio</title>
+  <title>Scriptorium — Editorial Writing Studio</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Noto+Nastaliq+Urdu:wght@400;600&family=Playfair+Display:ital,wght@0,500;0,600;1,500&display=swap" rel="stylesheet" />
@@ -113,7 +113,7 @@
 <body>
   <header>
     <div class="brand">
-      <span class="brand-title">Qalam &amp; Scriptorium</span>
+      <span class="brand-title">Scriptorium</span>
       <span class="brand-sub">Editorial &amp; Thesis Studio</span>
     </div>
     <div class="header-actions">
@@ -152,11 +152,14 @@
             <span class="chip" data-cmd="Fix grammar, punctuation, and awkward phrasing">Grammar &amp; Clarity</span>
             <span class="chip" data-cmd="Join fragmented sentences smoothly while keeping my voice">Join Fragments</span>
             <span class="chip" data-cmd="Check all English spellings to British English">British Spellings</span>
-            <span class="chip" data-cmd="List all non-English words">Non-English Words</span>
-            <span class="chip" data-cmd="List all Arabic or Urdu texts">Arabic / Urdu Texts</span>
-            <span class="chip" data-cmd="List all Quranic verses and ahadith">Quranic Verses &amp; Ahadith</span>
-            <span class="chip" data-cmd="List names of personalities, places, and topics for index">Personalities, Places &amp; Topics</span>
-            <span class="chip" data-cmd="Build a complete book index of non-English words, Arabic/Urdu texts, Quranic verses, ahadith, personalities, places, and topics with line and page numbers">Full Index List</span>
+            <span class="chip" data-cmd="List all verifiable personalities only">Personalities</span>
+            <span class="chip" data-cmd="List all places only">Places</span>
+            <span class="chip" data-cmd="List all topics only">Topics</span>
+            <span class="chip" data-cmd="List all Quranic verses only">Quranic Verses</span>
+            <span class="chip" data-cmd="List all ahadith only">Ahadith</span>
+            <span class="chip" data-cmd="List all non-English words only">Non-English Words</span>
+            <span class="chip" data-cmd="List all Arabic or Urdu texts only">Arabic / Urdu Texts</span>
+            <span class="chip" data-cmd="Build a complete book index separated by personalities, places, topics, Quranic verses, ahadith, non-English words, and Arabic/Urdu texts">Full Index List</span>
           </div>
           <button type="button" class="btn btn-primary" id="runCommandBtn" style="margin-top: 4px; width: 100%;">Generate Itemized List</button>
           <div class="index-report-box" id="indexExtractionBox"></div>
@@ -353,7 +356,7 @@
         badge.textContent = state.geminiGrounding ? 'Gemini API + Search Grounding' : 'Gemini API Live';
         badge.classList.add('live');
       } else {
-        badge.textContent = 'Fallback Gateway Mode';
+        badge.textContent = 'Local & Offline Ready (No Gemini Key)';
         badge.classList.remove('live');
       }
     }
@@ -825,7 +828,7 @@
     }
     async function callAI(systemPrompt, userPrompt, useSearchGrounding = false) {
       if (state.geminiKey) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(state.geminiKey)}`;
+        const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
         const bodyObj = {
           systemInstruction: { parts: [{ text: systemPrompt }] },
           contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
@@ -835,7 +838,11 @@
           bodyObj.tools = [{ google_search: {} }];
         }
         const res = await fetch(url, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': state.geminiKey
+          },
           body: JSON.stringify(bodyObj)
         });
         if (!res.ok) throw new Error('Gemini API error: ' + res.status);
@@ -849,12 +856,14 @@
           .map(w => ({ label: w.title ? w.title.slice(0, 32) : new URL(w.uri).hostname, url: w.uri, grounded: true }));
         return { text: textOut, groundedLinks };
       } else {
-        const res = await fetch('https://text.pollinations.ai/', {
+        const res = await fetch('https://gen.pollinations.ai/v1/chat/completions', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }], model: 'openai', jsonMode: false })
+          body: JSON.stringify({ messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }], model: 'openai' })
         });
         if (!res.ok) throw new Error('AI gateway error: ' + res.status);
-        return { text: await res.text(), groundedLinks: [] };
+        const data = await res.json();
+        const textOut = data?.choices?.[0]?.message?.content || '';
+        return { text: textOut, groundedLinks: [] };
       }
     }
     function buildFallbackItemsForCommand(cmd, text) {
@@ -908,33 +917,160 @@
       }
       return parsedList;
     }
-    function isIndexExtractionCommand(cmd) {
-      return /(?:list|extract|find|index|identify|collect|show).*(?:non[\s-]*english|arabic|urdu|quran|qur['’]?an|hadith|ahadith|ahadeth|personalit|person|people|author|scholar|prophet|companions?|places?|cities|countries|towns|locations?|topics?|themes?|subjects?)/i.test(cmd);
+    const WORD_NUMBER_MAP = {
+      one: 1, first: 1, i: 1,
+      two: 2, second: 2, ii: 2,
+      three: 3, third: 3, iii: 3,
+      four: 4, fourth: 4, iv: 4,
+      five: 5, fifth: 5, v: 5,
+      six: 6, sixth: 6, vi: 6,
+      seven: 7, seventh: 7, vii: 7,
+      eight: 8, eighth: 8, viii: 8,
+      nine: 9, ninth: 9, ix: 9,
+      ten: 10, tenth: 10, x: 10,
+      eleven: 11, eleventh: 11, xi: 11,
+      twelve: 12, twelfth: 12, xii: 12,
+      thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20
+    };
+    function parseSpokenOrTypedNumber(token) {
+      if (!token) return null;
+      const clean = String(token).trim().toLowerCase();
+      if (/^\d+$/.test(clean)) return parseInt(clean, 10);
+      return WORD_NUMBER_MAP[clean] || null;
     }
-    function runLocalIndexExtraction(cmd, text) {
+    function extractScopedSlice(cmd, fullText) {
+      const pageRangeMatch = cmd.match(/(?:from\s+)?pages?\s+([a-z0-9]+)\s*(?:to|through|until|-|–)\s*(?:pages?\s+)?([a-z0-9]+)/i);
+      if (pageRangeMatch) {
+        const pStart = parseSpokenOrTypedNumber(pageRangeMatch[1]);
+        const pEnd = parseSpokenOrTypedNumber(pageRangeMatch[2]);
+        if (pStart && pEnd) {
+          const lowP = Math.min(pStart, pEnd);
+          const highP = Math.max(pStart, pEnd);
+          const lines = fullText.split('\n');
+          let cursor = 0;
+          let sliceStart = -1;
+          let sliceEnd = -1;
+          for (let i = 0; i < lines.length; i++) {
+            const p = estimatePageAtIndex(fullText, cursor);
+            if (p >= lowP && p <= highP) {
+              if (sliceStart === -1) sliceStart = cursor;
+              sliceEnd = cursor + lines[i].length;
+            }
+            cursor += lines[i].length + 1;
+          }
+          if (sliceStart !== -1 && sliceEnd >= sliceStart) {
+            return { text: fullText.slice(sliceStart, sliceEnd), baseOffset: sliceStart, scopeLabel: `Pages ${lowP}–${highP}` };
+          }
+        }
+      }
+      const singlePageMatch = cmd.match(/\b(?:on|in|for)?\s*page\s+([a-z0-9]+)\b/i);
+      if (singlePageMatch) {
+        const pNum = parseSpokenOrTypedNumber(singlePageMatch[1]);
+        if (pNum) {
+          const lines = fullText.split('\n');
+          let cursor = 0;
+          let sliceStart = -1;
+          let sliceEnd = -1;
+          for (let i = 0; i < lines.length; i++) {
+            const p = estimatePageAtIndex(fullText, cursor);
+            if (p === pNum) {
+              if (sliceStart === -1) sliceStart = cursor;
+              sliceEnd = cursor + lines[i].length;
+            }
+            cursor += lines[i].length + 1;
+          }
+          if (sliceStart !== -1) {
+            return { text: fullText.slice(sliceStart, sliceEnd), baseOffset: sliceStart, scopeLabel: `Page ${pNum}` };
+          }
+        }
+      }
+      const chapMatch = cmd.match(/\bchapter\s+([a-z0-9]+)\b/i);
+      if (chapMatch) {
+        const targetNum = parseSpokenOrTypedNumber(chapMatch[1]);
+        const headingRegex = /^(?:#+\s*)?(?:chapter|ch\.?)\s+([a-z0-9]+)\b.*$/gim;
+        const headings = [];
+        let hm;
+        while ((hm = headingRegex.exec(fullText)) !== null) {
+          const hNum = parseSpokenOrTypedNumber(hm[1]);
+          headings.push({ index: hm.index, num: hNum, line: hm[0] });
+        }
+        if (targetNum && headings.length) {
+          const matching = headings.filter(h => h.num === targetNum);
+          const chosen = matching.length > 1 ? matching[matching.length - 1] : matching[0];
+          if (chosen) {
+            const nextHeading = headings.find(h => h.index > chosen.index && h.num !== targetNum);
+            const endIdx = nextHeading ? nextHeading.index : fullText.length;
+            return { text: fullText.slice(chosen.index, endIdx), baseOffset: chosen.index, scopeLabel: `Chapter ${targetNum}` };
+          }
+        }
+      }
+      const sectionMatch = cmd.match(/\b(?:in|only)?\s*(preface|introduction|foreword|conclusion|epilogue|about the author)\b/i);
+      if (sectionMatch) {
+        const secName = sectionMatch[1];
+        const secRegex = new RegExp(`^\\s*${escapeRegExp(secName)}\\s*$`, 'gim');
+        const matches = [...fullText.matchAll(secRegex)];
+        if (matches.length) {
+          const chosen = matches[matches.length - 1];
+          const start = chosen.index;
+          const rest = fullText.slice(start + chosen[0].length);
+          const nextMajor = rest.search(/\n\s*(?:CHAPTER|PREFACE|INTRODUCTION|CONCLUSION|EPILOGUE)\b/i);
+          const end = nextMajor >= 0 ? start + chosen[0].length + nextMajor : fullText.length;
+          return { text: fullText.slice(start, end), baseOffset: start, scopeLabel: secName };
+        }
+      }
+      return { text: fullText, baseOffset: 0, scopeLabel: 'Entire Document' };
+    }
+    function isIndexExtractionCommand(cmd) {
+      return /(?:list|extract|find|index|identify|collect|show|give\s+me).*(?:non[\s-]*english|arabic|urdu|quran|qur['’]?an|hadith|ahadith|ahadeth|personalit|person|people|names?\s+of\s+people|all\s+the\s+names|places?|cities|countries|towns|locations?|topics?|themes?|subjects?)/i.test(cmd);
+    }
+    function isVerifiablePersonalityName(phrase) {
+      const clean = phrase.replace(/\s+/g, ' ').trim();
+      if (clean.length < 4) return false;
+      const nonPersonBlocklist = /^(?:His Holiness|Her Holiness|His Grace|Your Grace|Your Holiness|The Promised Messiah|Promised Messiah|Holy Prophet|The Holy Prophet|Table Of Contents|About The Author|Supervisor|Preface|Introduction|Chapter\s+\w+|Allah|God|Almighty|Lord|Islam|Quran|Holy Quran|Hadith|Ahadith|Sunnah|Friday Sermon|Review Of Religions|Al Hakam|Al Fazl|The|This|That|These|Those|However|Therefore|Moreover|Furthermore|Indeed|Section|Part|Volume|Edition|Book|Page|Line)$/i;
+      if (nonPersonBlocklist.test(clean)) return false;
+      if (/^(?:Hazrat|Imam|Caliph|Khalifa|Prophet|Sheikh|Shaykh|Maulana|Maulvi|Allama|Doctor|Dr\.|Professor|Prof\.|Sir|Saint|St\.|King|Queen|Emperor|Caliphate|Companion|Sahabi)$/i.test(clean)) return false;
+      if (/\b(?:bin|ibn|bint|abu|umm|al-)\s+[A-Z][a-zA-Z’'-]{2,}/i.test(clean)) return true;
+      if (/^(?:Hazrat|Prophet|Imam|Caliph|Khalifa|Khalifatul\s+Masih|Sheikh|Shaykh|Maulana|Maulvi|Allama|Dr\.|Prof\.|Sir)\s+[A-Z][a-zA-Z’'-]+(?:\s+[A-Z][a-zA-Z’'-]+){0,3}$/.test(clean)) {
+        const withoutTitle = clean.replace(/^(?:Hazrat|Prophet|Imam|Caliph|Khalifa|Khalifatul\s+Masih|Sheikh|Shaykh|Maulana|Maulvi|Allama|Dr\.|Prof\.|Sir)\s+/i, '');
+        if (!/^(?:Holiness|Grace|Majesty|Highness|Excellency|Messiah|Prophet|Author|Supervisor)$/i.test(withoutTitle)) return true;
+      }
+      const parts = clean.split(' ');
+      if (parts.length >= 2 && parts.length <= 4) {
+        const nonNameWords = new Set(['Table','Contents','Chapter','Preface','Introduction','Section','Part','Book','Page','Line','Verse','Surah','Hadith','Mosque','Masjid','City','Town','Country','Valley','Mount','River','Sea','Ocean','University','College','School','Ministry','Government','Council','Committee','Journal','Newspaper','Review','Religions','January','February','March','April','May','June','July','August','September','October','November','December','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday','North','South','East','West','New','Old','Great','Holy','Sacred','Sign','Truthfulness','Opposition']);
+        if (parts.every(p => /^[A-Z][a-zA-Z’'-]{1,}$/.test(p) && !nonNameWords.has(p))) return true;
+      }
+      return false;
+    }
+    function runLocalIndexExtraction(cmd, scopedText, fullText, baseOffset) {
       const lower = cmd.toLowerCase();
-      const wantNonEnglish = /non[\s-]*english|foreign|other languages?/.test(lower);
-      const wantArabicOrUrdu = /arabic|urdu|script|nastaliq|persian|farsi/.test(lower);
-      const wantQuranOrHadith = /quran|qur['’]?an|verse|ayah|ayat|hadith|ahadith|ahadeth|tradition|narration|bukhari|muslim/.test(lower);
-      const wantEntities = /personalit|person|people|names?|places?|cities|countries|topics?|themes?|subjects?|index/.test(lower);
-      const lines = text.split('\n');
+      const isFullIndex = /full\s+index|complete\s+book\s+index/.test(lower);
+      const wantPersonalities = isFullIndex || /personalit|person|people|names?\s+of\s+people|all\s+the\s+names/.test(lower);
+      const wantPlaces = isFullIndex || /\bplaces?\b|cities|countries|towns|locations?/.test(lower);
+      const wantTopics = isFullIndex || /\btopics?\b|themes?|subjects?/.test(lower);
+      const wantQuran = isFullIndex || /quran|qur['’]?an|verse|ayah|ayat/.test(lower);
+      const wantHadith = isFullIndex || /hadith|ahadith|ahadeth|tradition|narration|bukhari|muslim/.test(lower);
+      const wantNonEnglish = isFullIndex || /non[\s-]*english|foreign|other languages?/.test(lower);
+      const wantArabicOrUrdu = isFullIndex || /arabic|urdu|script|nastaliq|persian|farsi/.test(lower);
+      const lines = scopedText.split('\n');
       const entries = [];
       const arabicUrduRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+(?:\s+[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+)*/g;
       const nonAsciiWordRegex = /[^\s\x00-\x7F]+/g;
-      let charCursor = 0;
-      lines.forEach((lineText, idx) => {
-        const lineNum = idx + 1;
-        const pageNum = estimatePageAtIndex(text, charCursor);
-        if (wantArabicOrUrdu || wantNonEnglish) {
+      let localCursor = 0;
+      lines.forEach((lineText) => {
+        const absIndex = baseOffset + localCursor;
+        const lineNum = estimateLineAtIndex(fullText, absIndex);
+        const pageNum = estimatePageAtIndex(fullText, absIndex);
+        if (wantArabicOrUrdu || wantNonEnglish || wantQuran) {
           let m;
           const arRegex = new RegExp(arabicUrduRegex.source, 'g');
           while ((m = arRegex.exec(lineText)) !== null) {
             const snippet = m[0].trim();
             if (!snippet) continue;
             const isQuranVerse = /(?:قُلْ|بِسْمِ|الْحَمْدُ|إِنَّ|وَمَا|الَّذِينَ|يَا أَيُّهَا|رَبَّنَا|اللَّهُ|لَا إِلَٰهَ|سُبْحَانَ|فَبِأَيِّ|إِنَّا أَنزَلْنَا|﴿)/.test(snippet);
-            const category = isQuranVerse ? 'Quranic Verse (Arabic)' : 'Arabic / Urdu Text';
-            if (wantArabicOrUrdu || wantNonEnglish || (wantQuranOrHadith && isQuranVerse)) {
-              entries.push({ category, item: snippet, lineNum, pageNum, charIndex: charCursor + m.index, note: `Line ${lineNum}, Page ${pageNum}` });
+            if (isQuranVerse && wantQuran) {
+              entries.push({ category: 'Quranic Verse', item: snippet, lineNum, pageNum, charIndex: absIndex + m.index });
+            } else if (!isQuranVerse && wantArabicOrUrdu) {
+              entries.push({ category: 'Arabic / Urdu Text', item: snippet, lineNum, pageNum, charIndex: absIndex + m.index });
             }
           }
         }
@@ -944,7 +1080,7 @@
           while ((wMatch = nonAsciiRegex.exec(lineText)) !== null) {
             const token = wMatch[0].trim();
             if (!token) continue;
-            entries.push({ category: 'Non-English Word / Script', item: token, lineNum, pageNum, charIndex: charCursor + wMatch.index, note: `Line ${lineNum}, Page ${pageNum}` });
+            entries.push({ category: 'Non-English Word', item: token, lineNum, pageNum, charIndex: absIndex + wMatch.index });
           }
           const latinWordRegex = /\b[A-Za-zÀ-ÖØ-öø-ÿ]{3,}\b/g;
           const commonEnglish = new Set(['the','and','for','with','that','this','from','have','has','had','were','was','are','been','being','which','their','there','about','would','could','should','into','over','after','before','between','through','during','without','within','under','upon','such','than','then','them','they','these','those','some','many','most','other','each','every','both','all','any','can','may','will','shall','must','not','but','yet','nor','also','only','very','just','more','even','still','well','back','here','where','when','what','who','whom','whose','why','how','because','since','although','though','while','unless','until','whether','either','neither','one','two','three','four','five','six','seven','eight','nine','ten','first','second','third','last','next','new','old','high','low','great','small','large','long','short','early','late','good','bad','true','false','part','book','chapter','page','line','lines','word','words','text','texts','quote','quotes','verse','verses','hadith','ahadith','name','names','place','places','topic','topics','index']);
@@ -952,30 +1088,47 @@
           while ((lw = latinWordRegex.exec(lineText)) !== null) {
             const word = lw[0];
             const lowerW = word.toLowerCase();
-            if (!commonEnglish.has(lowerW) && /(?:ah$|at$|uh$|iy$|een$|ullah$|uddin$|al$|islam|quran|hadith|sunnah|ummah|khilafat|taqwa|jihad|zakat|hajj|salat|sharia|fiqh|caliph|imam|sahaba|madinah|makkah|mecca|lahore|qadian|arabia|egypt|syria|baghdad|cordoba|andalusia|yoruba|hausa|igbo|urdu|arabic)/i.test(lowerW)) {
-              entries.push({ category: 'Non-English / Transliterated Term', item: word, lineNum, pageNum, charIndex: charCursor + lw.index, note: `Line ${lineNum}, Page ${pageNum}` });
+            if (!commonEnglish.has(lowerW) && /(?:ah$|at$|uh$|iy$|een$|ullah$|uddin$|islam|quran|hadith|sunnah|ummah|khilafat|taqwa|jihad|zakat|hajj|salat|sharia|fiqh|sahaba|madinah|makkah|mecca|qadian|rabwah|yoruba|hausa|igbo|urdu|arabic)/i.test(lowerW)) {
+              entries.push({ category: 'Non-English Word', item: word, lineNum, pageNum, charIndex: absIndex + lw.index });
             }
           }
         }
-        if (wantQuranOrHadith) {
-          if (/(?:quran|qur['’]?an|surah|sura|ayah|verse\s*\d+|chapter\s*\d+)/i.test(lineText) || /(?:hadith|ahadith|ahadeth|narrated|reported|sahih\s+(?:al-)?bukhari|sahih\s+muslim|abu\s+dawud|tirmidhi|nasai|ibn\s+majah|muwatta)/i.test(lineText)) {
-            const kind = /(?:hadith|ahadith|ahadeth|narrated|reported|bukhari|muslim)/i.test(lineText) ? 'Hadith / Narration Reference' : 'Quranic Reference / Verse';
-            entries.push({ category: kind, item: lineText.trim().slice(0, 220), lineNum, pageNum, charIndex: charCursor, note: `Line ${lineNum}, Page ${pageNum}` });
+        if (wantQuran) {
+          if (/(?:quran|qur['’]?an|surah|sura|ayah|ayat|\b\d{1,3}:\d{1,3}\b)/i.test(lineText)) {
+            entries.push({ category: 'Quranic Verse', item: lineText.trim().slice(0, 220), lineNum, pageNum, charIndex: absIndex });
           }
         }
-        if (wantEntities) {
-          const capPhraseRegex = /\b(?:[A-Z][a-zA-Z’'-]+(?:\s+(?:of|the|al-|ibn|bin|abu|de|van|von)?\s*[A-Z][a-zA-Z’'-]+){0,3})\b/g;
-          let cp;
-          while ((cp = capPhraseRegex.exec(lineText)) !== null) {
-            const phrase = cp[0].trim();
-            if (phrase.length < 3 || cp.index === 0) continue;
-            const isPlace = /\b(?:city|town|village|country|land|valley|mount|mountain|river|sea|ocean|mosque|masjid|madinah|makkah|mecca|jerusalem|cairo|baghdad|damascus|london|paris|accra|lagos|qadian|rabwah|islamabad|karachi|delhi)\b/i.test(phrase);
-            const isPerson = /\b(?:hazrat|prophet|imam|caliph|khalifa|sheikh|shaykh|maulana|dr\.|prof\.|muhammad|ahmad|ali|umar|uthman|abu\s+bakr|fatimah|aisha|maryam|ibrahim|musa|isa|dawud|sulaiman|yusuf)\b/i.test(phrase);
-            const cat = isPlace ? 'Place / Location' : (isPerson ? 'Personality / Figure' : 'Topic / Named Term');
-            entries.push({ category: cat, item: phrase, lineNum, pageNum, charIndex: charCursor + cp.index, note: `Line ${lineNum}, Page ${pageNum}` });
+        if (wantHadith) {
+          if (/(?:hadith|ahadith|ahadeth|narrated|reported|sahih\s+(?:al-)?bukhari|sahih\s+muslim|sunan\s+abi\s+dawud|jami\s+at-tirmidhi|sunan\s+an-nasai|ibn\s+majah|muwatta|musnad\s+ahmad)/i.test(lineText)) {
+            entries.push({ category: 'Hadith', item: lineText.trim().slice(0, 220), lineNum, pageNum, charIndex: absIndex });
           }
         }
-        charCursor += lineText.length + 1;
+        if (wantPersonalities) {
+          const personRegex = /\b(?:(?:Hazrat|Prophet|Imam|Caliph|Khalifa|Khalifatul\s+Masih|Sheikh|Shaykh|Maulana|Maulvi|Allama|Dr\.|Prof\.|Sir)\s+)?[A-Z][a-zA-Z’'-]+(?:\s+(?:bin|ibn|bint|abu|umm|al-|[A-Z][a-zA-Z’'-]+)){1,4}\b/g;
+          let pm;
+          while ((pm = personRegex.exec(lineText)) !== null) {
+            const candidate = pm[0].trim();
+            if (isVerifiablePersonalityName(candidate)) {
+              entries.push({ category: 'Personality', item: candidate, lineNum, pageNum, charIndex: absIndex + pm.index });
+            }
+          }
+        }
+        if (wantPlaces) {
+          const placeRegex = /\b(?:Makkah|Mecca|Madinah|Medina|Jerusalem|Baitul\s+Maqdis|Cairo|Baghdad|Damascus|Kufa|Basra|Cordoba|Andalusia|London|Paris|Accra|Lagos|Qadian|Rabwah|Lahore|Islamabad|Karachi|Delhi|India|Pakistan|Arabia|Hijaz|Syria|Egypt|Iraq|Iran|Persia|Yemen|Abyssinia|Ethiopia|Ghana|Nigeria|Mount\s+[A-Z][a-zA-Z’'-]+|Valley\s+of\s+[A-Z][a-zA-Z’'-]+|Masjid\s+[A-Z][a-zA-Z’'-]+)\b/g;
+          let pl;
+          while ((pl = placeRegex.exec(lineText)) !== null) {
+            entries.push({ category: 'Place', item: pl[0].trim(), lineNum, pageNum, charIndex: absIndex + pl.index });
+          }
+        }
+        if (wantTopics) {
+          const trimmedLine = lineText.trim();
+          if (trimmedLine.length >= 6 && trimmedLine.length <= 90 && !/[.!?]$/.test(trimmedLine)) {
+            if (/^(?:#+\s*)?(?:[A-Z][A-Za-z0-9\s,’':-]{4,85})$/.test(trimmedLine) && !/^(?:TABLE OF CONTENTS|PREFACE|INTRODUCTION|ABOUT THE AUTHOR|CHAPTER\s+\w+)$/i.test(trimmedLine)) {
+              entries.push({ category: 'Topic', item: trimmedLine.replace(/^#+\s*/, ''), lineNum, pageNum, charIndex: absIndex });
+            }
+          }
+        }
+        localCursor += lineText.length + 1;
       });
       const seen = new Set();
       return entries.filter(e => {
@@ -985,7 +1138,7 @@
         return true;
       });
     }
-    function renderIndexExtractionBox(cmd, entries) {
+    function renderIndexExtractionBox(cmd, entries, scopeLabel = 'Entire Document') {
       const box = document.getElementById('indexExtractionBox');
       if (!box) return;
       box.innerHTML = '';
@@ -993,38 +1146,51 @@
       box.classList.add('open');
       const header = document.createElement('div');
       header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;';
-      header.innerHTML = `<strong style="font-size:11.5px;">Index &amp; Extraction List (${entries.length} item${entries.length === 1 ? '' : 's'})</strong><button type="button" class="btn btn-xs" id="copyIndexListBtn">Copy List</button>`;
+      header.innerHTML = `<strong style="font-size:11.5px;">${escapeHtml(scopeLabel)} (${entries.length} item${entries.length === 1 ? '' : 's'})</strong><button type="button" class="btn btn-xs" id="copyIndexListBtn">Copy List</button>`;
       box.appendChild(header);
       header.querySelector('#copyIndexListBtn').addEventListener('click', () => {
         const plain = entries.map((e, i) => `${i + 1}. [${e.category}] ${e.item} — Page ${e.pageNum}, Line ${e.lineNum}`).join('\n');
         navigator.clipboard?.writeText(plain).then(() => showToast('Copied index list to clipboard.'));
       });
-      entries.forEach((e, idx) => {
-        const row = document.createElement('div');
-        row.className = 'index-item-row';
-        row.style.cursor = 'pointer';
-        row.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-secondary);">${idx + 1}. ${escapeHtml(e.category)}</span><span class="page-badge">Page ${e.pageNum} · Line ${e.lineNum}</span></div><div style="font-family:var(--font-serif);font-size:13px;color:var(--ink-primary);">${escapeHtml(e.item)}</div>`;
-        row.addEventListener('click', () => {
-          if (typeof e.charIndex === 'number') locateInDocument(e.charIndex, Math.min(20, e.item.length), row);
+      const grouped = new Map();
+      entries.forEach(e => {
+        if (!grouped.has(e.category)) grouped.set(e.category, []);
+        grouped.get(e.category).push(e);
+      });
+      grouped.forEach((catItems, catName) => {
+        const groupHeader = document.createElement('div');
+        groupHeader.style.cssText = 'font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--ink-primary);padding:4px 2px 2px;border-bottom:1px solid var(--border-strong);margin-top:4px;';
+        groupHeader.textContent = `${catName} (${catItems.length})`;
+        box.appendChild(groupHeader);
+        catItems.forEach((e, idx) => {
+          const row = document.createElement('div');
+          row.className = 'index-item-row';
+          row.style.cursor = 'pointer';
+          row.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:10px;font-weight:600;color:var(--ink-secondary);">#${idx + 1}</span><span class="page-badge">Page ${e.pageNum} · Line ${e.lineNum}</span></div><div style="font-family:var(--font-serif);font-size:13px;color:var(--ink-primary);">${escapeHtml(e.item)}</div>`;
+          row.addEventListener('click', () => {
+            if (typeof e.charIndex === 'number') locateInDocument(e.charIndex, Math.min(20, e.item.length), row);
+          });
+          box.appendChild(row);
         });
-        box.appendChild(row);
       });
     }
     async function runCommand() {
       const cmd = document.getElementById('commandInput').value.trim();
-      const text = editor.value;
+      const fullText = editor.value;
       if (!cmd) { showToast('Enter or speak an instruction first.'); return; }
-      if (!text.trim()) { showToast('Paste or import a document in the center editor first.'); return; }
+      if (!fullText.trim()) { showToast('Paste or import a document in the center editor first.'); return; }
+      const scoped = extractScopedSlice(cmd, fullText);
+      const text = scoped.text;
       if (/british/i.test(cmd) && /spell/i.test(cmd)) { runBritishSpellingAudit(); return; }
       if (isIndexExtractionCommand(cmd)) {
         const runBtn = document.getElementById('runCommandBtn');
-        runBtn.disabled = true; runBtn.textContent = 'Extracting index items...';
+        runBtn.disabled = true; runBtn.textContent = `Extracting (${scoped.scopeLabel})...`;
         try {
-          const localEntries = runLocalIndexExtraction(cmd, text);
+          const localEntries = runLocalIndexExtraction(cmd, text, fullText, scoped.baseOffset);
           if (state.geminiKey) {
-            const sysPrompt = 'You are an editorial indexer. Extract requested items from the text: non-English words, Arabic or Urdu texts, Quranic verses, ahadith, names of personalities, places, and topics. Return ONLY a JSON array of objects: [{"category":"Non-English Word | Arabic/Urdu Text | Quranic Verse | Hadith | Personality | Place | Topic","item":"exact word, phrase, verse, or topic"}].';
+            const sysPrompt = 'You are an editorial indexer. Extract ONLY the specific category requested by the user from the text. Keep categories strictly separate: "Personality" (ONLY verifiable real people/historical figures like "Abdullah bin Sahl", "Hazrat Mirza Ghulam Ahmad", "Imam Bukhari" — NEVER titles/honorifics alone like "His Holiness" or "His Grace"), "Place", "Topic", "Quranic Verse", "Hadith", "Non-English Word", "Arabic / Urdu Text". Return ONLY a JSON array: [{"category":"...","item":"exact text"}].';
             try {
-              const resObj = await callAI(sysPrompt, `Instruction: ${cmd}\n\nDocument:\n"""\n${text.slice(0, 6000)}\n"""`, false);
+              const resObj = await callAI(sysPrompt, `Instruction: ${cmd}\nScope: ${scoped.scopeLabel}\n\nText:\n"""\n${text.slice(0, 12000)}\n"""`, false);
               const cleaned = (resObj.text || '').replace(/```json|```/gi, '').trim();
               const match = cleaned.match(/\[[\s\S]*\]/);
               if (match) {
@@ -1035,19 +1201,20 @@
                     if (!p || !p.item) return;
                     const itemStr = String(p.item).trim();
                     const catStr = String(p.category || 'Index Entry').trim();
+                    if (/personality/i.test(catStr) && !isVerifiablePersonalityName(itemStr)) return;
                     const key = `${catStr.toLowerCase()}||${itemStr.toLowerCase()}`;
                     if (seen.has(key)) return;
                     seen.add(key);
-                    const foundPos = text.toLowerCase().indexOf(itemStr.toLowerCase());
-                    const safePos = foundPos >= 0 ? foundPos : 0;
-                    localEntries.push({ category: catStr, item: itemStr, lineNum: estimateLineAtIndex(text, safePos), pageNum: estimatePageAtIndex(text, safePos), charIndex: safePos });
+                    const relPos = text.toLowerCase().indexOf(itemStr.toLowerCase());
+                    const absPos = scoped.baseOffset + (relPos >= 0 ? relPos : 0);
+                    localEntries.push({ category: catStr, item: itemStr, lineNum: estimateLineAtIndex(fullText, absPos), pageNum: estimatePageAtIndex(fullText, absPos), charIndex: absPos });
                   });
                 }
               }
             } catch (_) {}
           }
-          renderIndexExtractionBox(cmd, localEntries);
-          showToast(localEntries.length ? `Extracted ${localEntries.length} index item(s) with page & line numbers.` : 'No matching items found for that index request.');
+          renderIndexExtractionBox(cmd, localEntries, scoped.scopeLabel);
+          showToast(localEntries.length ? `Extracted ${localEntries.length} item(s) in ${scoped.scopeLabel}.` : `No matching items found in ${scoped.scopeLabel}.`);
         } finally {
           runBtn.disabled = false; runBtn.textContent = 'Generate Itemized List';
         }
@@ -1055,29 +1222,43 @@
       }
       const explicitPair = parseExplicitReplacementCommand(cmd);
       if (explicitPair) {
-        const items = buildItemizedWordReplacements(text, explicitPair.fromVal, explicitPair.toVal, `${cmd} ("${explicitPair.fromVal}" → "${explicitPair.toVal}")`);
+        const items = buildItemizedWordReplacements(text, explicitPair.fromVal, explicitPair.toVal, `${cmd} (${scoped.scopeLabel})`);
+        items.forEach(it => { if (typeof it.charIndex === 'number') it.charIndex += scoped.baseOffset; });
         state.queue = items; renderQueue();
-        showToast(items.length ? `Listed ${items.length} itemized occurrence(s) for "${explicitPair.fromVal}" → "${explicitPair.toVal}".` : `No occurrences of "${explicitPair.fromVal}" found in the draft.`);
+        showToast(items.length ? `Listed ${items.length} itemized occurrence(s) in ${scoped.scopeLabel}.` : `No occurrences of "${explicitPair.fromVal}" found in ${scoped.scopeLabel}.`);
         return;
       }
       const runBtn = document.getElementById('runCommandBtn');
-      runBtn.disabled = true; runBtn.textContent = 'Analyzing line by line...';
+      runBtn.disabled = true; runBtn.textContent = `Proofreading (${scoped.scopeLabel})...`;
       const langLabel = getLangName(state.lang);
-      const systemPrompt = `You are a meticulous multilingual literary & thesis editor fluent in English, Urdu, Arabic, and Yoruba. Active manuscript language: ${langLabel}. For ANY instruction given by the user, return ONLY a valid JSON array of individual, atomic proposed edits: [{"before":"exact sentence or phrase from text (or empty string if appending/completing)","after":"proposed replacement or completion in ${langLabel} unless another language is requested","reason":"concise explanation of this specific item"}]. Rules: Break every change into small individual items (#1, #2, #3...) rather than returning whole paragraphs or full documents. If the user asks to complete an unfinished sentence, return an item with "before" as the unfinished sentence and "after" as the completed sentence in ${langLabel}, matching the author's tone. If the user asks to join fragments, return one item per joined pair. Omit sentences that require no change.` + (state.styleSample ? ' Author tone sample: ' + state.styleSample.slice(0, 1200) : '');
+      const systemPrompt = `You are a meticulous multilingual literary & thesis editor fluent in English, Urdu, Arabic, and Yoruba. Active manuscript language: ${langLabel}. Scope: ${scoped.scopeLabel}. Preserve the author's exact tone and voice. Check grammar, word usage, punctuation, and clarity, and return ONLY a valid JSON array of small, atomic line/phrase-level proposed edits: [{"before":"exact short phrase or sentence from the text (or empty string if completing)","after":"proposed replacement in ${langLabel} matching the author's tone","reason":"concise explanation of what word/grammar to change and why"}]. Rules: NEVER return entire paragraphs or whole chapters—break every single fix into a small individual item (#1, #2, #3...) so the user can approve items individually or select all at once. Omit sentences that need no change.` + (state.styleSample ? ' Author tone sample: ' + state.styleSample.slice(0, 1200) : '');
       try {
         const chunks = splitDocumentIntoChunks(text, 1800);
         let allItems = [];
         for (let i = 0; i < chunks.length; i++) {
-          runBtn.textContent = chunks.length > 1 ? `Checking part ${i + 1}/${chunks.length}...` : 'Building itemized list...';
+          runBtn.textContent = chunks.length > 1 ? `Checking ${scoped.scopeLabel} (${i + 1}/${chunks.length})...` : `Checking ${scoped.scopeLabel}...`;
           const resObj = await callAI(systemPrompt, 'Instruction: ' + cmd + '\n\nText segment:\n"""\n' + chunks[i] + '\n"""', false);
-          allItems.push(...parseAtomicEditsFromAI(resObj.text, chunks[i], cmd));
+          const parsedChunkItems = parseAtomicEditsFromAI(resObj.text, chunks[i], cmd);
+          parsedChunkItems.forEach(it => {
+            if (it.before) {
+              const relIdx = text.indexOf(it.before);
+              if (relIdx >= 0) {
+                const absIdx = scoped.baseOffset + relIdx;
+                const pNum = estimatePageAtIndex(fullText, absIdx);
+                const lNum = estimateLineAtIndex(fullText, absIdx);
+                it.charIndex = absIdx;
+                it.reason = `${it.reason} (Page ${pNum}, Line ${lNum})`;
+              }
+            }
+          });
+          allItems.push(...parsedChunkItems);
         }
         if (!allItems.length) allItems = buildFallbackItemsForCommand(cmd, text);
         state.queue = allItems; renderQueue();
-        showToast(allItems.length ? `Listed ${allItems.length} proposed change(s) in the approval queue.` : 'No changes proposed for this command.');
+        showToast(allItems.length ? `Listed ${allItems.length} itemized edit(s) for ${scoped.scopeLabel}. Click Select All & Apply to accept all.` : `No edits proposed for ${scoped.scopeLabel}.`);
       } catch (err) {
         const fallbackItems = buildFallbackItemsForCommand(cmd, text);
-        if (fallbackItems.length) { state.queue = fallbackItems; renderQueue(); showToast(`AI offline—listed ${fallbackItems.length} local proposed change(s).`); }
+        if (fallbackItems.length) { state.queue = fallbackItems; renderQueue(); showToast(`Gateway fallback—listed ${fallbackItems.length} local proposed change(s) in ${scoped.scopeLabel}.`); }
         else { showToast('Could not generate change list: ' + err.message); }
       } finally { runBtn.disabled = false; runBtn.textContent = 'Generate Itemized List'; }
     }
