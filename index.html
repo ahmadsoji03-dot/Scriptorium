@@ -64,6 +64,10 @@
     .scope-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 3px; background: var(--bg-subtle); border: 1px solid var(--border-strong); color: var(--ink-primary); }
     .scope-badge.exact-box { background: #F7F5EE; border-color: var(--ink-primary); }
     .book-tag-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 4px 8px; border-radius: var(--radius-sm); background: var(--bg-subtle); border: 1px solid var(--border-hairline); color: var(--ink-primary); }
+    .page-badge { display: inline-flex; align-items: center; font-size: 10.5px; font-weight: 600; font-family: var(--font-mono); padding: 1px 6px; border-radius: 3px; background: var(--bg-subtle); border: 1px solid var(--border-strong); color: var(--ink-primary); }
+    .index-report-box { margin-top: 8px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--bg-canvas); padding: 10px; display: none; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto; }
+    .index-report-box.open { display: flex; }
+    .index-item-row { border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); background: var(--bg-surface); padding: 7px 9px; font-size: 11.5px; display: flex; flex-direction: column; gap: 3px; }
     .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
     .chip { font-size: 11.5px; padding: 4px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); background: var(--bg-canvas); color: var(--ink-secondary); cursor: pointer; transition: all 0.12s ease; }
     .chip:hover { border-color: var(--ink-primary); color: var(--ink-primary); background: var(--bg-surface); }
@@ -148,8 +152,14 @@
             <span class="chip" data-cmd="Fix grammar, punctuation, and awkward phrasing">Grammar &amp; Clarity</span>
             <span class="chip" data-cmd="Join fragmented sentences smoothly while keeping my voice">Join Fragments</span>
             <span class="chip" data-cmd="Check all English spellings to British English">British Spellings</span>
+            <span class="chip" data-cmd="List all non-English words">Non-English Words</span>
+            <span class="chip" data-cmd="List all Arabic or Urdu texts">Arabic / Urdu Texts</span>
+            <span class="chip" data-cmd="List all Quranic verses and ahadith">Quranic Verses &amp; Ahadith</span>
+            <span class="chip" data-cmd="List names of personalities, places, and topics for index">Personalities, Places &amp; Topics</span>
+            <span class="chip" data-cmd="Build a complete book index of non-English words, Arabic/Urdu texts, Quranic verses, ahadith, personalities, places, and topics with line and page numbers">Full Index List</span>
           </div>
           <button type="button" class="btn btn-primary" id="runCommandBtn" style="margin-top: 4px; width: 100%;">Generate Itemized List</button>
+          <div class="index-report-box" id="indexExtractionBox"></div>
         </div>
       </div>
       <div class="divider"></div>
@@ -646,6 +656,21 @@
       return new RegExp(escaped, 'giu');
     }
 
+    function estimatePageAtIndex(text, charIndex) {
+      const safeIdx = Math.max(0, Math.min(text.length, Number(charIndex) || 0));
+      const prefix = text.slice(0, safeIdx);
+      const explicitFormFeeds = (prefix.match(/\f/g) || []).length;
+      const explicitPageMarkers = (prefix.match(/\[(?:page|pg\.?)\s*\d+\]/gi) || []).length;
+      const wordsBefore = prefix.trim() ? prefix.trim().split(/\s+/).length : 0;
+      const linesBefore = prefix.split('\n').length;
+      const wordPage = Math.floor(wordsBefore / 250) + 1;
+      const linePage = Math.floor((linesBefore - 1) / 35) + 1;
+      return Math.max(1, explicitFormFeeds + explicitPageMarkers + Math.max(wordPage, linePage));
+    }
+    function estimateLineAtIndex(text, charIndex) {
+      const safeIdx = Math.max(0, Math.min(text.length, Number(charIndex) || 0));
+      return text.slice(0, safeIdx).split('\n').length;
+    }
     function locateInDocument(charIndex, length, rowEl = null) {
       if (typeof charIndex !== 'number' || charIndex < 0) return;
       const safeEnd = Math.min(editor.value.length, charIndex + Math.max(1, length || 1));
@@ -673,7 +698,8 @@
 
       document.querySelectorAll('#wordMatchesList .match-item').forEach(el => el.classList.remove('located'));
       if (rowEl) rowEl.classList.add('located');
-      showToast(`Located occurrence at character ${charIndex + 1} (line ${lineCount}).`);
+      const pageCount = estimatePageAtIndex(editor.value, charIndex);
+      showToast(`Located occurrence at character ${charIndex + 1} (Page ${pageCount}, Line ${lineCount}).`);
     }
 
     function collectWordMatches(text, query, matchMode = 'partial') {
@@ -745,7 +771,9 @@
             before: text.slice(start, end),
             after: text.slice(start, match.index) + ukWord + text.slice(match.index + raw.length, end),
             exactFind: raw, exactReplace: ukWord, charIndex: match.index,
-            reason: `British spelling: "${raw}" → "${ukWord}"`,
+            pageNum: estimatePageAtIndex(text, match.index),
+            lineNum: estimateLineAtIndex(text, match.index),
+            reason: `British spelling: "${raw}" → "${ukWord}" (Page ${estimatePageAtIndex(text, match.index)}, Line ${estimateLineAtIndex(text, match.index)})`,
             mode: 'exact', selected: true
           });
         }
@@ -880,12 +908,151 @@
       }
       return parsedList;
     }
+    function isIndexExtractionCommand(cmd) {
+      return /(?:list|extract|find|index|identify|collect|show).*(?:non[\s-]*english|arabic|urdu|quran|qur['’]?an|hadith|ahadith|ahadeth|personalit|person|people|author|scholar|prophet|companions?|places?|cities|countries|towns|locations?|topics?|themes?|subjects?)/i.test(cmd);
+    }
+    function runLocalIndexExtraction(cmd, text) {
+      const lower = cmd.toLowerCase();
+      const wantNonEnglish = /non[\s-]*english|foreign|other languages?/.test(lower);
+      const wantArabicOrUrdu = /arabic|urdu|script|nastaliq|persian|farsi/.test(lower);
+      const wantQuranOrHadith = /quran|qur['’]?an|verse|ayah|ayat|hadith|ahadith|ahadeth|tradition|narration|bukhari|muslim/.test(lower);
+      const wantEntities = /personalit|person|people|names?|places?|cities|countries|topics?|themes?|subjects?|index/.test(lower);
+      const lines = text.split('\n');
+      const entries = [];
+      const arabicUrduRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+(?:\s+[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]+)*/g;
+      const nonAsciiWordRegex = /[^\s\x00-\x7F]+/g;
+      let charCursor = 0;
+      lines.forEach((lineText, idx) => {
+        const lineNum = idx + 1;
+        const pageNum = estimatePageAtIndex(text, charCursor);
+        if (wantArabicOrUrdu || wantNonEnglish) {
+          let m;
+          const arRegex = new RegExp(arabicUrduRegex.source, 'g');
+          while ((m = arRegex.exec(lineText)) !== null) {
+            const snippet = m[0].trim();
+            if (!snippet) continue;
+            const isQuranVerse = /(?:قُلْ|بِسْمِ|الْحَمْدُ|إِنَّ|وَمَا|الَّذِينَ|يَا أَيُّهَا|رَبَّنَا|اللَّهُ|لَا إِلَٰهَ|سُبْحَانَ|فَبِأَيِّ|إِنَّا أَنزَلْنَا|﴿)/.test(snippet);
+            const category = isQuranVerse ? 'Quranic Verse (Arabic)' : 'Arabic / Urdu Text';
+            if (wantArabicOrUrdu || wantNonEnglish || (wantQuranOrHadith && isQuranVerse)) {
+              entries.push({ category, item: snippet, lineNum, pageNum, charIndex: charCursor + m.index, note: `Line ${lineNum}, Page ${pageNum}` });
+            }
+          }
+        }
+        if (wantNonEnglish) {
+          let wMatch;
+          const nonAsciiRegex = new RegExp(nonAsciiWordRegex.source, 'g');
+          while ((wMatch = nonAsciiRegex.exec(lineText)) !== null) {
+            const token = wMatch[0].trim();
+            if (!token) continue;
+            entries.push({ category: 'Non-English Word / Script', item: token, lineNum, pageNum, charIndex: charCursor + wMatch.index, note: `Line ${lineNum}, Page ${pageNum}` });
+          }
+          const latinWordRegex = /\b[A-Za-zÀ-ÖØ-öø-ÿ]{3,}\b/g;
+          const commonEnglish = new Set(['the','and','for','with','that','this','from','have','has','had','were','was','are','been','being','which','their','there','about','would','could','should','into','over','after','before','between','through','during','without','within','under','upon','such','than','then','them','they','these','those','some','many','most','other','each','every','both','all','any','can','may','will','shall','must','not','but','yet','nor','also','only','very','just','more','even','still','well','back','here','where','when','what','who','whom','whose','why','how','because','since','although','though','while','unless','until','whether','either','neither','one','two','three','four','five','six','seven','eight','nine','ten','first','second','third','last','next','new','old','high','low','great','small','large','long','short','early','late','good','bad','true','false','part','book','chapter','page','line','lines','word','words','text','texts','quote','quotes','verse','verses','hadith','ahadith','name','names','place','places','topic','topics','index']);
+          let lw;
+          while ((lw = latinWordRegex.exec(lineText)) !== null) {
+            const word = lw[0];
+            const lowerW = word.toLowerCase();
+            if (!commonEnglish.has(lowerW) && /(?:ah$|at$|uh$|iy$|een$|ullah$|uddin$|al$|islam|quran|hadith|sunnah|ummah|khilafat|taqwa|jihad|zakat|hajj|salat|sharia|fiqh|caliph|imam|sahaba|madinah|makkah|mecca|lahore|qadian|arabia|egypt|syria|baghdad|cordoba|andalusia|yoruba|hausa|igbo|urdu|arabic)/i.test(lowerW)) {
+              entries.push({ category: 'Non-English / Transliterated Term', item: word, lineNum, pageNum, charIndex: charCursor + lw.index, note: `Line ${lineNum}, Page ${pageNum}` });
+            }
+          }
+        }
+        if (wantQuranOrHadith) {
+          if (/(?:quran|qur['’]?an|surah|sura|ayah|verse\s*\d+|chapter\s*\d+)/i.test(lineText) || /(?:hadith|ahadith|ahadeth|narrated|reported|sahih\s+(?:al-)?bukhari|sahih\s+muslim|abu\s+dawud|tirmidhi|nasai|ibn\s+majah|muwatta)/i.test(lineText)) {
+            const kind = /(?:hadith|ahadith|ahadeth|narrated|reported|bukhari|muslim)/i.test(lineText) ? 'Hadith / Narration Reference' : 'Quranic Reference / Verse';
+            entries.push({ category: kind, item: lineText.trim().slice(0, 220), lineNum, pageNum, charIndex: charCursor, note: `Line ${lineNum}, Page ${pageNum}` });
+          }
+        }
+        if (wantEntities) {
+          const capPhraseRegex = /\b(?:[A-Z][a-zA-Z’'-]+(?:\s+(?:of|the|al-|ibn|bin|abu|de|van|von)?\s*[A-Z][a-zA-Z’'-]+){0,3})\b/g;
+          let cp;
+          while ((cp = capPhraseRegex.exec(lineText)) !== null) {
+            const phrase = cp[0].trim();
+            if (phrase.length < 3 || cp.index === 0) continue;
+            const isPlace = /\b(?:city|town|village|country|land|valley|mount|mountain|river|sea|ocean|mosque|masjid|madinah|makkah|mecca|jerusalem|cairo|baghdad|damascus|london|paris|accra|lagos|qadian|rabwah|islamabad|karachi|delhi)\b/i.test(phrase);
+            const isPerson = /\b(?:hazrat|prophet|imam|caliph|khalifa|sheikh|shaykh|maulana|dr\.|prof\.|muhammad|ahmad|ali|umar|uthman|abu\s+bakr|fatimah|aisha|maryam|ibrahim|musa|isa|dawud|sulaiman|yusuf)\b/i.test(phrase);
+            const cat = isPlace ? 'Place / Location' : (isPerson ? 'Personality / Figure' : 'Topic / Named Term');
+            entries.push({ category: cat, item: phrase, lineNum, pageNum, charIndex: charCursor + cp.index, note: `Line ${lineNum}, Page ${pageNum}` });
+          }
+        }
+        charCursor += lineText.length + 1;
+      });
+      const seen = new Set();
+      return entries.filter(e => {
+        const key = `${e.category}||${e.item.toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
+    function renderIndexExtractionBox(cmd, entries) {
+      const box = document.getElementById('indexExtractionBox');
+      if (!box) return;
+      box.innerHTML = '';
+      if (!entries.length) { box.classList.remove('open'); return; }
+      box.classList.add('open');
+      const header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;';
+      header.innerHTML = `<strong style="font-size:11.5px;">Index &amp; Extraction List (${entries.length} item${entries.length === 1 ? '' : 's'})</strong><button type="button" class="btn btn-xs" id="copyIndexListBtn">Copy List</button>`;
+      box.appendChild(header);
+      header.querySelector('#copyIndexListBtn').addEventListener('click', () => {
+        const plain = entries.map((e, i) => `${i + 1}. [${e.category}] ${e.item} — Page ${e.pageNum}, Line ${e.lineNum}`).join('\n');
+        navigator.clipboard?.writeText(plain).then(() => showToast('Copied index list to clipboard.'));
+      });
+      entries.forEach((e, idx) => {
+        const row = document.createElement('div');
+        row.className = 'index-item-row';
+        row.style.cursor = 'pointer';
+        row.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--ink-secondary);">${idx + 1}. ${escapeHtml(e.category)}</span><span class="page-badge">Page ${e.pageNum} · Line ${e.lineNum}</span></div><div style="font-family:var(--font-serif);font-size:13px;color:var(--ink-primary);">${escapeHtml(e.item)}</div>`;
+        row.addEventListener('click', () => {
+          if (typeof e.charIndex === 'number') locateInDocument(e.charIndex, Math.min(20, e.item.length), row);
+        });
+        box.appendChild(row);
+      });
+    }
     async function runCommand() {
       const cmd = document.getElementById('commandInput').value.trim();
       const text = editor.value;
       if (!cmd) { showToast('Enter or speak an instruction first.'); return; }
       if (!text.trim()) { showToast('Paste or import a document in the center editor first.'); return; }
       if (/british/i.test(cmd) && /spell/i.test(cmd)) { runBritishSpellingAudit(); return; }
+      if (isIndexExtractionCommand(cmd)) {
+        const runBtn = document.getElementById('runCommandBtn');
+        runBtn.disabled = true; runBtn.textContent = 'Extracting index items...';
+        try {
+          const localEntries = runLocalIndexExtraction(cmd, text);
+          if (state.geminiKey) {
+            const sysPrompt = 'You are an editorial indexer. Extract requested items from the text: non-English words, Arabic or Urdu texts, Quranic verses, ahadith, names of personalities, places, and topics. Return ONLY a JSON array of objects: [{"category":"Non-English Word | Arabic/Urdu Text | Quranic Verse | Hadith | Personality | Place | Topic","item":"exact word, phrase, verse, or topic"}].';
+            try {
+              const resObj = await callAI(sysPrompt, `Instruction: ${cmd}\n\nDocument:\n"""\n${text.slice(0, 6000)}\n"""`, false);
+              const cleaned = (resObj.text || '').replace(/```json|```/gi, '').trim();
+              const match = cleaned.match(/\[[\s\S]*\]/);
+              if (match) {
+                const parsed = JSON.parse(match[0]);
+                if (Array.isArray(parsed)) {
+                  const seen = new Set(localEntries.map(x => `${x.category.toLowerCase()}||${x.item.toLowerCase()}`));
+                  parsed.forEach(p => {
+                    if (!p || !p.item) return;
+                    const itemStr = String(p.item).trim();
+                    const catStr = String(p.category || 'Index Entry').trim();
+                    const key = `${catStr.toLowerCase()}||${itemStr.toLowerCase()}`;
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    const foundPos = text.toLowerCase().indexOf(itemStr.toLowerCase());
+                    const safePos = foundPos >= 0 ? foundPos : 0;
+                    localEntries.push({ category: catStr, item: itemStr, lineNum: estimateLineAtIndex(text, safePos), pageNum: estimatePageAtIndex(text, safePos), charIndex: safePos });
+                  });
+                }
+              }
+            } catch (_) {}
+          }
+          renderIndexExtractionBox(cmd, localEntries);
+          showToast(localEntries.length ? `Extracted ${localEntries.length} index item(s) with page & line numbers.` : 'No matching items found for that index request.');
+        } finally {
+          runBtn.disabled = false; runBtn.textContent = 'Generate Itemized List';
+        }
+        return;
+      }
       const explicitPair = parseExplicitReplacementCommand(cmd);
       if (explicitPair) {
         const items = buildItemizedWordReplacements(text, explicitPair.fromVal, explicitPair.toVal, `${cmd} ("${explicitPair.fromVal}" → "${explicitPair.toVal}")`);
@@ -1236,7 +1403,8 @@
         const matchNum = i + 1;
         const idx = mt.index;
         const foundWord = mt.foundWord;
-        const lineNum = text.slice(0, idx).split('\n').length;
+        const lineNum = estimateLineAtIndex(text, idx);
+        const pageNum = estimatePageAtIndex(text, idx);
         const start = Math.max(0, idx - 28);
         const end = Math.min(text.length, idx + foundWord.length + 28);
         const beforeCtx = text.slice(start, end);
@@ -1244,7 +1412,7 @@
         row.className = 'match-item';
         row.style.cursor = 'pointer';
         row.title = 'Click to jump to this occurrence in the document';
-        row.innerHTML = `<div>…${escapeHtml(text.slice(start, idx))}<mark>${escapeHtml(foundWord)}</mark>${escapeHtml(text.slice(idx + foundWord.length, end))}…</div><div style="display:flex;justify-content:space-between;align-items:center;gap:6px;"><span style="font-size:11px;color:var(--ink-muted);">Place #${matchNum} · Line ${lineNum}</span><button type="button" class="btn btn-xs">Queue This One</button></div>`;
+        row.innerHTML = `<div>…${escapeHtml(text.slice(start, idx))}<mark>${escapeHtml(foundWord)}</mark>${escapeHtml(text.slice(idx + foundWord.length, end))}…</div><div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;"><span style="font-size:11px;color:var(--ink-muted);">Place #${matchNum} · <span class="page-badge">Page ${pageNum}</span> · Line ${lineNum}</span><button type="button" class="btn btn-xs">Queue This One</button></div>`;
         row.addEventListener('click', (e) => {
           if (e.target.tagName === 'BUTTON') return;
           locateInDocument(idx, foundWord.length, row);
