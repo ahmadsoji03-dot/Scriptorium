@@ -61,6 +61,8 @@
     .export-change-entry { border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 9px 11px; background: var(--bg-canvas); display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
     .export-change-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--ink-muted); }
     .export-summary-strip { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 8px 11px; background: var(--bg-subtle); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); font-size: 12px; }
+    .review-scope-note { font-size: 11px; color: var(--ink-secondary); background: var(--bg-subtle); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 6px 9px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+    .review-scope-badge { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 6px; border-radius: 3px; background: var(--ink-primary); color: #FFFFFF; }
     .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
     .chip { font-size: 11.5px; padding: 4px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); background: var(--bg-canvas); color: var(--ink-secondary); cursor: pointer; transition: all 0.12s ease; }
     .chip:hover { border-color: var(--ink-primary); color: var(--ink-primary); background: var(--bg-surface); }
@@ -145,6 +147,17 @@
             <span class="chip" data-cmd="Fix grammar, punctuation, and awkward phrasing">Grammar &amp; Clarity</span>
             <span class="chip" data-cmd="Join fragmented sentences smoothly while keeping my voice">Join Fragments</span>
             <span class="chip" data-cmd="Check all English spellings to British English">British Spellings</span>
+          </div>
+          <div style="margin-top: 6px;">
+            <div class="section-label" style="margin-bottom: 5px;">
+              <span>Exact Sentence / Passage to Review (Optional)</span>
+              <button type="button" class="btn btn-xs" id="clearReviewTargetBtn">Clear</button>
+            </div>
+            <textarea id="reviewTargetInput" rows="3" placeholder="Paste the exact sentence or passage you want to review here. Leave blank to review the entire file."></textarea>
+            <div class="review-scope-note" style="margin-top: 5px;">
+              <span id="reviewScopeText">Reviewing: Entire File</span>
+              <span class="review-scope-badge" id="reviewScopeBadge">Entire File</span>
+            </div>
           </div>
           <button type="button" class="btn btn-primary" id="runCommandBtn" style="margin-top: 4px; width: 100%;">Generate Itemized List</button>
         </div>
@@ -708,8 +721,10 @@
       }
       return null;
 }
-    function runBritishSpellingAudit() {
-      const text = editor.value;
+    function runBritishSpellingAudit(customText = null, scopeLabel = null) {
+      const target = getActiveReviewTarget();
+      const activeScope = scopeLabel || target.scopeLabel;
+      const text = typeof customText === 'string' ? customText : target.text;
       if (!text.trim()) { showToast('Your document is empty.'); return; }
       const map = new Map(US_TO_UK_PAIRS);
       const wordRegex = /\b[A-Za-z]+\b/g;
@@ -724,7 +739,7 @@
             before: text.slice(start, end),
             after: text.slice(start, match.index) + ukWord + text.slice(match.index + raw.length, end),
             exactFind: raw, exactReplace: ukWord, charIndex: match.index,
-            reason: `British spelling: "${raw}" → "${ukWord}"`,
+            reason: `British spelling: "${raw}" → "${ukWord}" [${activeScope}]`,
             mode: 'exact', selected: true
           });
         }
@@ -808,7 +823,7 @@
         return { text: await res.text(), groundedLinks: [] };
       }
     }
-    function buildFallbackItemsForCommand(cmd, text) {
+    function buildFallbackItemsForCommand(cmd, text, scopeLabel = 'Entire File') {
       const lowerCmd = cmd.toLowerCase(); const items = []; const sentences = splitIntoSentences(text);
       if (/complete|finish|continue|ending|last sentence/.test(lowerCmd)) {
         const last = sentences[sentences.length - 1] || text.trim();
@@ -859,37 +874,70 @@
       }
       return parsedList;
     }
+    function getActiveReviewTarget() {
+      const pasted = document.getElementById('reviewTargetInput').value;
+      if (pasted.trim()) {
+        return { text: pasted, isEntireFile: false, scopeLabel: 'Specific Sentence / Pasted Passage' };
+      }
+      return { text: editor.value, isEntireFile: true, scopeLabel: 'Entire File' };
+    }
+    function updateReviewScopeIndicator() {
+      const target = getActiveReviewTarget();
+      const textEl = document.getElementById('reviewScopeText');
+      const badgeEl = document.getElementById('reviewScopeBadge');
+      if (target.isEntireFile) {
+        textEl.textContent = 'Reviewing: Entire File';
+        badgeEl.textContent = 'Entire File';
+      } else {
+        textEl.textContent = 'Reviewing: Specific Sentence (' + target.text.trim().length + ' chars)';
+        badgeEl.textContent = 'Specific Sentence';
+      }
+    }
+    document.getElementById('reviewTargetInput').addEventListener('input', updateReviewScopeIndicator);
+    document.getElementById('clearReviewTargetBtn').addEventListener('click', () => {
+      document.getElementById('reviewTargetInput').value = '';
+      updateReviewScopeIndicator();
+      showToast('Cleared specific sentence box — now reviewing Entire File.');
+    });
+    updateReviewScopeIndicator();
     async function runCommand() {
       const cmd = document.getElementById('commandInput').value.trim();
-      const text = editor.value;
+      const target = getActiveReviewTarget();
+      const text = target.text;
       if (!cmd) { showToast('Enter or speak an instruction first.'); return; }
-      if (!text.trim()) { showToast('Paste or import a document in the center editor first.'); return; }
-      if (/british/i.test(cmd) && /spell/i.test(cmd)) { runBritishSpellingAudit(); return; }
+      if (!text.trim()) {
+        showToast(target.isEntireFile ? 'Paste or import a document in the center editor first.' : 'Enter text in the review box or leave it blank to review the entire file.');
+        return;
+      }
+      if (/british/i.test(cmd) && /spell/i.test(cmd)) {
+        runBritishSpellingAudit(text, target.scopeLabel);
+        return;
+      }
       const explicitPair = parseExplicitReplacementCommand(cmd);
       if (explicitPair) {
-        const items = buildItemizedWordReplacements(text, explicitPair.fromVal, explicitPair.toVal, `${cmd} ("${explicitPair.fromVal}" → "${explicitPair.toVal}")`);
+        const items = buildItemizedWordReplacements(text, explicitPair.fromVal, explicitPair.toVal, `${cmd} ("${explicitPair.fromVal}" → "${explicitPair.toVal}") [${target.scopeLabel}]`);
         state.queue = items; renderQueue();
-        showToast(items.length ? `Listed ${items.length} itemized occurrence(s) for "${explicitPair.fromVal}" → "${explicitPair.toVal}".` : `No occurrences of "${explicitPair.fromVal}" found in the draft.`);
+        showToast(items.length ? `Listed ${items.length} itemized occurrence(s) in ${target.scopeLabel}.` : `No occurrences of "${explicitPair.fromVal}" found in ${target.scopeLabel}.`);
         return;
       }
       const runBtn = document.getElementById('runCommandBtn');
       runBtn.disabled = true; runBtn.textContent = 'Analyzing line by line...';
       const langLabel = getLangName(state.lang);
-      const systemPrompt = `You are a meticulous multilingual literary & thesis editor fluent in English, Urdu, Arabic, and Yoruba. Active manuscript language: ${langLabel}. For ANY instruction given by the user, return ONLY a valid JSON array of individual, atomic proposed edits: [{"before":"exact sentence or phrase from text (or empty string if appending/completing)","after":"proposed replacement or completion in ${langLabel} unless another language is requested","reason":"concise explanation of this specific item"}]. Rules: Break every change into small individual items (#1, #2, #3...) rather than returning whole paragraphs or full documents. If the user asks to complete an unfinished sentence, return an item with "before" as the unfinished sentence and "after" as the completed sentence in ${langLabel}, matching the author's tone. If the user asks to join fragments, return one item per joined pair. Omit sentences that require no change.` + (state.styleSample ? ' Author tone sample: ' + state.styleSample.slice(0, 1200) : '');
+      const systemPrompt = `You are a meticulous multilingual literary & thesis editor fluent in English, Urdu, Arabic, and Yoruba. Active manuscript language: ${langLabel}. Review scope: ${target.scopeLabel}. For ANY instruction given by the user, return ONLY a valid JSON array of individual, atomic proposed edits: [{"before":"exact sentence or phrase from text (or empty string if appending/completing)","after":"proposed replacement or completion in ${langLabel} unless another language is requested","reason":"concise explanation of this specific item including [${target.scopeLabel}]"}]. Rules: Break every change into small individual items (#1, #2, #3...) rather than returning whole paragraphs or full documents. If the user asks to complete an unfinished sentence, return an item with "before" as the unfinished sentence and "after" as the completed sentence in ${langLabel}, matching the author's tone. If the user asks to join fragments, return one item per joined pair. Omit sentences that require no change.` + (state.styleSample ? ' Author tone sample: ' + state.styleSample.slice(0, 1200) : '');
       try {
         const chunks = splitDocumentIntoChunks(text, 1800);
         let allItems = [];
         for (let i = 0; i < chunks.length; i++) {
-          runBtn.textContent = chunks.length > 1 ? `Checking part ${i + 1}/${chunks.length}...` : 'Building itemized list...';
-          const resObj = await callAI(systemPrompt, 'Instruction: ' + cmd + '\n\nText segment:\n"""\n' + chunks[i] + '\n"""', false);
-          allItems.push(...parseAtomicEditsFromAI(resObj.text, chunks[i], cmd));
+          runBtn.textContent = chunks.length > 1 ? `Checking part ${i + 1}/${chunks.length} (${target.scopeLabel})...` : `Building itemized list (${target.scopeLabel})...`;
+          const resObj = await callAI(systemPrompt, 'Review Scope: ' + target.scopeLabel + '\nInstruction: ' + cmd + '\n\nText segment:\n"""\n' + chunks[i] + '\n"""', false);
+          allItems.push(...parseAtomicEditsFromAI(resObj.text, chunks[i], `${cmd} [${target.scopeLabel}]`));
         }
-        if (!allItems.length) allItems = buildFallbackItemsForCommand(cmd, text);
+        if (!allItems.length) allItems = buildFallbackItemsForCommand(cmd, text, target.scopeLabel);
         state.queue = allItems; renderQueue();
-        showToast(allItems.length ? `Listed ${allItems.length} proposed change(s) in the approval queue.` : 'No changes proposed for this command.');
+        showToast(allItems.length ? `Listed ${allItems.length} proposed change(s) from ${target.scopeLabel}.` : `No changes proposed for ${target.scopeLabel}.`);
       } catch (err) {
-        const fallbackItems = buildFallbackItemsForCommand(cmd, text);
-        if (fallbackItems.length) { state.queue = fallbackItems; renderQueue(); showToast(`AI offline—listed ${fallbackItems.length} local proposed change(s).`); }
+        const fallbackItems = buildFallbackItemsForCommand(cmd, text, target.scopeLabel);
+        if (fallbackItems.length) { state.queue = fallbackItems; renderQueue(); showToast(`AI offline—listed ${fallbackItems.length} local change(s) from ${target.scopeLabel}.`); }
         else { showToast('Could not generate change list: ' + err.message); }
       } finally { runBtn.disabled = false; runBtn.textContent = 'Generate Itemized List'; }
     }
@@ -964,10 +1012,11 @@
       }));
     }
     document.getElementById('verifyRefsBtn').addEventListener('click', async () => {
-      const text = editor.value.trim();
-      if (!text) { showToast('Write or paste a fact or sentence in the editor first.'); return; }
+      const target = getActiveReviewTarget();
+      const text = target.text.trim();
+      if (!text) { showToast('Write or paste a fact or sentence in the review box or editor first.'); return; }
       const btn = document.getElementById('verifyRefsBtn');
-      btn.disabled = true; btn.textContent = 'Searching web, books & references...';
+      btn.disabled = true; btn.textContent = `Searching (${target.scopeLabel})...`;
       const scopeInstruction = state.restrictToPubs
         ? ('Limit source recommendations primarily to these enabled publications: ' + state.publications.filter(p => p.enabled).map(p => `${p.name} (${p.domain})`).join(', '))
         : 'Do NOT limit your search to any fixed list of publications. Search across the entire internet—books, chapters, historical footnotes, archival records, articles, encyclopedias, and primary or secondary sources wherever the reference exists.';
