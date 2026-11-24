@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Qalam & Scriptorium — Multilingual Writing Buddy & Thesis Studio</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts: Plus Jakarta Sans (UI), Newsreader (Editorial Serif), Amiri & Noto Naskh Arabic (Arabic & Urdu) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Mammoth.js for importing .docx files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+
+    <!-- docx UMD bundle for exporting real Microsoft Word .docx files -->
+    <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        serif: ['"Newsreader"', 'Georgia', 'serif'],
+                        arabic: ['"Amiri"', '"Noto Naskh Arabic"', 'serif'],
+                        urdu: ['"Noto Naskh Arabic"', '"Amiri"', 'serif'],
+                    },
+                    colors: {
+                        canvas: '#FAF8F5',
+                        sheet: '#FFFFFF',
+                        sidebar: '#F3EFEA',
+                        ink: '#1C1917',
+                        muted: '#57534E',
+                        forest: '#1B4332',
+                        forestHover: '#143326',
+                        brass: '#B45309',
+                        brassLight: '#FEF3C7',
+                        borderWarm: '#E5DFD5',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: #FAF8F5;
+            color: #1C1917;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        /* Language-specific editorial typography */
+        .editor-font-en, .editor-font-yo {
+            font-family: 'Newsreader', Georgia, serif;
+            font-size: 1.1875rem;
+            line-height: 1.85;
+        }
+        .editor-font-ar {
+            font-family: 'Amiri', 'Noto Naskh Arabic', serif;
+            font-size: 1.45rem;
+            line-height: 2.15;
+        }
+        .editor-font-ur {
+            font-family: 'Noto Naskh Arabic', 'Amiri', serif;
+            font-size: 1.35rem;
+            line-height: 2.25;
+        }
+
+        /* Custom subtle scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #D6CFC4;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #B8AFA2;
+        }
+
+        /* Voice recording pulse rings */
+        @keyframes voicePulse {
+            0% { box-shadow: 0 0 0 0 rgba(180, 83, 9, 0.45); }
+            70% { box-shadow: 0 0 0 12px rgba(180, 83, 9, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(180, 83, 9, 0); }
+        }
+        .mic-recording {
+            animation: voicePulse 1.5s infinite;
+            background-color: #B45309 !important;
+            color: #FFFFFF !important;
+        }
+
+        /* Soundbar animation */
+        @keyframes soundWave {
+            0%, 100% { height: 6px; }
+            50% { height: 18px; }
+        }
+        .wave-bar {
+            width: 3px;
+            background-color: #B45309;
+            border-radius: 999px;
+            animation: soundWave 0.8s ease-in-out infinite;
+        }
+        .wave-bar:nth-child(2) { animation-delay: 0.15s; }
+        .wave-bar:nth-child(3) { animation-delay: 0.3s; }
+        .wave-bar:nth-child(4) { animation-delay: 0.45s; }
+        .wave-bar:nth-child(5) { animation-delay: 0.2s; }
+
+        /* Spinner */
+        .loader-ring {
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(27, 67, 50, 0.2);
+            border-top-color: #1B4332;
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-amber-200/70 selection:text-ink">
+
+    <!-- Toast Notification Stack (No alert() or confirm() used) -->
+    <div id="toast-stack" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- =========================================================================
+         TOP WORKBENCH HEADER & FILE I/O BAR
+         ========================================================================= -->
+    <header class="sticky top-0 z-30 bg-canvas/95 backdrop-blur-md border-b border-borderWarm px-3 sm:px-5 py-2.5">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-2.5">
+
+            <!-- Left: Brand Emblem & Inline Editable Custom Title -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-forest text-white flex items-center justify-center shadow-xs shrink-0">
+                    <i data-lucide="feather" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-1.5">
+                        <input id="app-custom-title" type="text" value="Qalam & Scriptorium" onchange="saveCustomTitle(this.value)" title="Click to rename your studio" class="font-semibold text-sm sm:text-base text-ink bg-transparent hover:bg-sidebar/80 focus:bg-white focus:ring-2 focus:ring-forest/30 rounded-lg px-1.5 py-0.5 -ml-1.5 transition-all focus:outline-none w-44 sm:w-52">
+                        <i data-lucide="pencil" class="w-3 h-3 text-muted opacity-60 pointer-events-none"></i>
+                    </div>
+                    <p class="text-[11px] text-muted leading-none">Multilingual Writing Buddy & Thesis Studio</p>
+                </div>
+            </div>
+
+            <!-- Center: Language & Direction Switcher -->
+            <div class="flex items-center gap-1.5 bg-sidebar p-1 rounded-xl border border-borderWarm order-3 lg:order-2 w-full lg:w-auto justify-between sm:justify-center">
+                <div class="flex items-center gap-1 flex-wrap">
+                    <button onclick="setLanguage('en')" id="lang-btn-en" class="lang-pill px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-white text-forest shadow-2xs">
+                        English <span class="text-[10px] opacity-70">LTR</span>
+                    </button>
+                    <button onclick="setLanguage('ur')" id="lang-btn-ur" class="lang-pill px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-muted hover:text-ink">
+                        اردو <span class="text-[10px] opacity-70">RTL</span>
+                    </button>
+                    <button onclick="setLanguage('ar')" id="lang-btn-ar" class="lang-pill px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-muted hover:text-ink">
+                        العربية <span class="text-[10px] opacity-70">RTL</span>
+                    </button>
+                    <button onclick="setLanguage('yo')" id="lang-btn-yo" class="lang-pill px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-muted hover:text-ink">
+                        Yorùbá <span class="text-[10px] opacity-70">LTR</span>
+                    </button>
+                </div>
+                <button onclick="toggleManualDirection()" id="manual-dir-btn" class="px-2 py-1 rounded-lg bg-canvas border border-borderWarm text-[11px] font-semibold text-ink hover:bg-white transition-colors" title="Flip LTR / RTL text direction">
+                    LTR
+                </button>
+            </div>
+
+            <!-- Right: Import File, Export File, Pending Approvals Badge & API Settings -->
+            <div class="flex items-center gap-2 order-2 lg:order-3">
+                <!-- Import Document (.docx, .txt, .md) -->
+                <label for="file-import-input" class="cursor-pointer flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-borderWarm hover:bg-sidebar text-xs font-medium text-ink transition-all shadow-2xs" title="Import .docx, .txt, or .md file">
+                    <i data-lucide="file-up" class="w-3.5 h-3.5 text-forest"></i>
+                    <span class="hidden sm:inline">Import File</span>
+                </label>
+                <input id="file-import-input" type="file" accept=".docx,.txt,.md" class="hidden" onchange="handleFileImport(event)">
+
+                <!-- Export Document Dropdown -->
+                <div class="relative">
+                    <button onclick="toggleExportMenu()" id="export-menu-btn" class="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-forest text-white hover:bg-forestHover text-xs font-medium transition-all shadow-2xs">
+                        <i data-lucide="file-down" class="w-3.5 h-3.5"></i>
+                        <span class="hidden sm:inline">Export File</span>
+                        <i data-lucide="chevron-down" class="w-3 h-3 opacity-80"></i>
+                    </button>
+                    <div id="export-dropdown" class="hidden absolute right-0 mt-1.5 w-48 bg-white border border-borderWarm rounded-xl shadow-lg py-1.5 z-40 text-xs">
+                        <button onclick="exportAsDocx()" class="w-full text-left px-3.5 py-2 hover:bg-sidebar flex items-center gap-2 text-ink font-medium">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5 text-forest"></i>
+                            <span>Microsoft Word (.docx)</span>
+                        </button>
+                        <button onclick="exportAsMarkdown()" class="w-full text-left px-3.5 py-2 hover:bg-sidebar flex items-center gap-2 text-ink">
+                            <i data-lucide="file-code" class="w-3.5 h-3.5 text-brass"></i>
+                            <span>Markdown (.md)</span>
+                        </button>
+                        <button onclick="exportAsTxt()" class="w-full text-left px-3.5 py-2 hover:bg-sidebar flex items-center gap-2 text-ink">
+                            <i data-lucide="align-left" class="w-3.5 h-3.5 text-muted"></i>
+                            <span>Plain Text (.txt)</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Pending Approvals Counter Pill -->
+                <button onclick="focusApprovalDrawer()" id="header-approval-pill" class="hidden items-center gap-1.5 px-3 py-2 rounded-xl bg-brassLight border border-amber-300 text-brass text-xs font-semibold animate-pulse">
+                    <i data-lucide="git-pull-request" class="w-3.5 h-3.5"></i>
+                    <span id="header-approval-count">0 Pending</span>
+                </button>
+
+                <!-- Settings / API Key -->
+                <button onclick="openSettingsModal()" class="p-2 rounded-xl bg-white border border-borderWarm hover:bg-sidebar text-ink transition-colors relative" title="API Key & Deployment Guide">
+                    <i data-lucide="settings" class="w-4 h-4"></i>
+                    <span id="api-indicator-dot" class="w-2 h-2 rounded-full bg-amber-500 absolute top-1.5 right-1.5"></span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- =========================================================================
+         MAIN 3-COLUMN WORKBENCH
+         ========================================================================= -->
+    <div class="flex-1 max-w-[1600px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 p-3 sm:p-5">
+
+        <!-- =====================================================================
+             LEFT SIDEBAR: VOICE HUB, TONE VAULT & SCHOLARLY SOURCES (3 Cols)
+             ===================================================================== -->
+        <aside class="lg:col-span-3 flex flex-col gap-4">
+
+            <!-- 1. VOICE COMMAND & INSTRUCTION HUB ("Audio Place") -->
+            <section class="bg-sidebar/90 border border-borderWarm rounded-2xl p-4 shadow-2xs flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-brassLight text-brass flex items-center justify-center">
+                            <i data-lucide="mic" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-xs text-ink uppercase tracking-wider">Voice & Command Hub</h2>
+                            <p class="text-[11px] text-muted">Speak or type instructions</p>
+                        </div>
+                    </div>
+                    <!-- Live Waveform Indicator -->
+                    <div id="voice-waveform" class="hidden items-center gap-0.5 h-5 px-2">
+                        <span class="wave-bar"></span>
+                        <span class="wave-bar"></span>
+                        <span class="wave-bar"></span>
+                        <span class="wave-bar"></span>
+                        <span class="wave-bar"></span>
+                    </div>
+                </div>
+
+                <!-- Prominent Microphone Action Row -->
+                <div class="flex items-center gap-2">
+                    <button id="mic-toggle-btn" onclick="toggleVoiceRecognition()" class="flex-1 py-2.5 px-3 rounded-xl bg-forest text-white hover:bg-forestHover text-xs font-medium flex items-center justify-center gap-2 transition-all shadow-2xs">
+                        <i data-lucide="mic" class="w-4 h-4"></i>
+                        <span id="mic-btn-label">Speak Instruction</span>
+                    </button>
+                    <select id="voice-lang-select" title="Voice recognition language" class="rounded-xl border border-borderWarm bg-white px-2 py-2.5 text-xs text-ink focus:outline-none">
+                        <option value="en-US">EN</option>
+                        <option value="ur-PK">UR</option>
+                        <option value="ar-SA">AR</option>
+                        <option value="yo-NG">YO</option>
+                    </select>
+                </div>
+
+                <!-- Live Transcript / Natural Command Box -->
+                <div class="relative">
+                    <textarea id="command-input" rows="3" placeholder="Speak or type e.g.:&#10;• 'Complete my sentence in my tone'&#10;• 'Fix grammar and join these paragraphs'&#10;• 'Check all places I used organisation and change to organization'&#10;• 'Verify references in my text'" class="w-full rounded-xl border border-borderWarm bg-white p-3 text-xs text-ink placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-forest/30 resize-y leading-relaxed"></textarea>
+                </div>
+
+                <button onclick="executeBuddyCommand()" id="run-command-btn" class="w-full py-2 px-3 rounded-xl bg-ink text-white hover:bg-stone-800 text-xs font-medium flex items-center justify-center gap-2 transition-all">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i>
+                    <span>Propose Edits (Review First)</span>
+                </button>
+            </section>
+
+            <!-- 2. STYLE & TONE REFERENCE VAULT -->
+            <section class="bg-sidebar/90 border border-borderWarm rounded-2xl p-4 shadow-2xs flex flex-col gap-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="fingerprint" class="w-4 h-4 text-forest"></i>
+                        <h2 class="font-semibold text-xs text-ink uppercase tracking-wider">My Writing Tone Vault</h2>
+                    </div>
+                    <button onclick="saveStyleSample()" class="text-[11px] font-semibold text-forest hover:underline">Save Voice</button>
+                </div>
+                <p class="text-[11px] text-muted leading-relaxed">
+                    Paste a sample of your past column or thesis writing for <strong id="tone-lang-label" class="text-ink">English</strong>. When finishing unfinished sentences, your buddy mirrors this voice.
+                </p>
+                <textarea id="style-sample-input" rows="3" placeholder="Paste 1–2 paragraphs from your previous writings here..." class="w-full rounded-xl border border-borderWarm bg-white p-2.5 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-forest/30 resize-y leading-relaxed"></textarea>
+            </section>
+
+            <!-- 3. SCHOLARLY SOURCES, BOOKS & YOUTUBE BOOKMARKS -->
+            <section class="bg-sidebar/90 border border-borderWarm rounded-2xl p-4 shadow-2xs flex flex-col gap-3">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="library" class="w-4 h-4 text-forest"></i>
+                    <h2 class="font-semibold text-xs text-ink uppercase tracking-wider">Sources, Books & Archives</h2>
+                </div>
+
+                <!-- Book Title Lookup (No PDF needed) -->
+                <div>
+                    <label class="block text-[11px] font-medium text-ink mb-1">Book Title (Searches online—no PDF needed)</label>
+                    <input id="source-book-input" type="text" placeholder="e.g. Philosophy of the Teachings of Islam" class="w-full rounded-xl border border-borderWarm bg-white px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-forest/30">
+                </div>
+
+                <!-- Specific Website URL or YouTube Video Link -->
+                <div>
+                    <label class="block text-[11px] font-medium text-ink mb-1">Specific Article URL or YouTube Link</label>
+                    <input id="source-url-input" type="url" placeholder="https://alislam.org/... or https://youtu.be/..." class="w-full rounded-xl border border-borderWarm bg-white px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-forest/30">
+                </div>
+
+                <!-- Preset Trusted Repositories -->
+                <div>
+                    <span class="block text-[11px] font-medium text-ink mb-1.5">Trusted Repositories (Click to toggle)</span>
+                    <div class="flex flex-wrap gap-1.5" id="archive-toggles">
+                        <button type="button" data-domain="alislam.org" onclick="toggleArchiveDomain(this)" class="archive-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-forest text-white border border-forest transition-all">
+                            Al-Islam.org
+                        </button>
+                        <button type="button" data-domain="alfazl.com" onclick="toggleArchiveDomain(this)" class="archive-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-forest text-white border border-forest transition-all">
+                            Al-Fazl
+                        </button>
+                        <button type="button" data-domain="reviewofreligions.org" onclick="toggleArchiveDomain(this)" class="archive-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-forest text-white border border-forest transition-all">
+                            Review of Religions
+                        </button>
+                        <button type="button" data-domain="rationalreligion.co.uk" onclick="toggleArchiveDomain(this)" class="archive-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-forest text-white border border-forest transition-all">
+                            Rational Religion
+                        </button>
+                        <button type="button" data-domain="islamahmadiyya.net" onclick="toggleArchiveDomain(this)" class="archive-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white text-muted border border-borderWarm hover:text-ink transition-all">
+                            Arabic Archives
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Scope Toggle -->
+                <div class="flex items-center justify-between text-[11px] bg-white px-3 py-2 rounded-xl border border-borderWarm">
+                    <span class="text-muted">Search Scope:</span>
+                    <select id="source-scope-select" class="font-medium text-ink bg-transparent focus:outline-none">
+                        <option value="selected_and_web">Selected Archives + Web Book Search</option>
+                        <option value="strict_only">Strictly Provided URL / Book Only</option>
+                    </select>
+                </div>
+
+                <button onclick="consultSourcesAndDraft()" class="w-full py-2 px-3 rounded-xl bg-forest text-white hover:bg-forestHover text-xs font-medium flex items-center justify-center gap-1.5 transition-all">
+                    <i data-lucide="book-open-check" class="w-3.5 h-3.5"></i>
+                    <span>Consult Source & Suggest Text</span>
+                </button>
+            </section>
+        </aside>
+
+        <!-- =====================================================================
+             CENTER CANVAS: DISTRACTION-FREE WRITING SHEET & DIFF DRAWER (6 Cols)
+             ===================================================================== -->
+        <main class="lg:col-span-6 flex flex-col gap-4">
+
+            <!-- Quick Editorial Action Ribbon -->
+            <div class="bg-white border border-borderWarm rounded-2xl p-2 shadow-2xs flex flex-wrap items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-1.5">
+                    <button onclick="quickProposeAction('join_fix')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-forest text-white hover:bg-forestHover text-xs font-medium transition-all">
+                        <i data-lucide="git-merge" class="w-3.5 h-3.5"></i>
+                        <span>Join & Fix Fragments</span>
+                    </button>
+                    <button onclick="quickProposeAction('complete_sentence')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 text-brass border border-amber-200 hover:bg-amber-100 text-xs font-medium transition-all">
+                        <i data-lucide="wand-2" class="w-3.5 h-3.5"></i>
+                        <span>Complete My Sentence</span>
+                    </button>
+                    <button onclick="quickProposeAction('verify_all_refs')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-canvas text-ink border border-borderWarm hover:bg-sidebar text-xs font-medium transition-all">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-forest"></i>
+                        <span>Check References</span>
+                    </button>
+                </div>
+
+                <!-- Undo / Copy / Clear -->
+                <div class="flex items-center gap-1">
+                    <button onclick="undoLastApplied()" id="undo-apply-btn" disabled class="p-1.5 rounded-lg border border-borderWarm text-muted hover:text-ink disabled:opacity-40 transition-colors" title="Undo last approved change">
+                        <i data-lucide="undo-2" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="copyCanvasText()" class="p-1.5 rounded-lg border border-borderWarm text-muted hover:text-ink transition-colors" title="Copy document text">
+                        <i data-lucide="copy" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="loadDemoColumn()" class="px-2.5 py-1.5 rounded-lg border border-borderWarm text-[11px] font-medium text-muted hover:text-ink transition-colors" title="Load sample column with spelling & citation examples">
+                        Sample Text
+                    </button>
+                </div>
+            </div>
+
+            <!-- HUMAN-IN-THE-LOOP CHANGE APPROVAL DRAWER (Appears whenever edits are proposed) -->
+            <section id="approval-drawer" class="hidden bg-amber-50/90 border-2 border-amber-300 rounded-2xl p-4 shadow-md flex flex-col gap-3 transition-all">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 pb-2.5">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-brass text-white flex items-center justify-center">
+                            <i data-lucide="git-pull-request" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-xs sm:text-sm text-ink">Review Proposed Changes Before Applying</h3>
+                            <p class="text-[11px] text-muted">Nothing has changed in your document yet. Uncheck any edit you do not want.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="toggleAllProposed(true)" class="text-[11px] font-medium text-forest hover:underline px-1.5">Select All</button>
+                        <span class="text-amber-300">|</span>
+                        <button onclick="discardAllProposed()" class="text-[11px] font-medium text-red-700 hover:underline px-1.5">Discard All</button>
+                    </div>
+                </div>
+
+                <!-- Individual Diff Cards List -->
+                <div id="proposed-changes-list" class="max-h-72 overflow-y-auto space-y-2.5 pr-1"></div>
+
+                <!-- Final Approval Action Bar -->
+                <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-amber-200">
+                    <span id="selected-changes-summary" class="text-xs font-medium text-ink">0 changes selected</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="discardAllProposed()" class="px-3.5 py-2 rounded-xl bg-white border border-borderWarm text-xs font-medium text-ink hover:bg-stone-100">
+                            Cancel
+                        </button>
+                        <button onclick="applyApprovedChanges()" id="confirm-apply-btn" class="px-4 py-2 rounded-xl bg-forest text-white hover:bg-forestHover text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+                            <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                            <span>Okay, Yes — Apply Selected Changes</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MAIN WRITING SHEET -->
+            <div class="bg-sheet border border-borderWarm rounded-2xl shadow-xs flex-1 flex flex-col min-h-[540px] relative overflow-hidden">
+                <!-- Sheet Header Metadata -->
+                <div class="px-5 py-2.5 bg-canvas/60 border-b border-borderWarm/70 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-3.5 h-3.5 text-forest"></i>
+                        <span id="current-doc-name" class="font-medium text-ink">Untitled_Draft.docx</span>
+                        <span id="dirty-indicator" class="hidden px-2 py-0.5 rounded-full bg-amber-100 text-brass font-medium">Edited</span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span id="sheet-word-count">0 words</span>
+                        <span id="sheet-char-count">0 chars</span>
+                    </div>
+                </div>
+
+                <!-- Processing Overlay -->
+                <div id="canvas-loader" class="hidden absolute inset-0 bg-white/80 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center gap-2.5">
+                    <div class="loader-ring w-7 h-7"></div>
+                    <p id="canvas-loader-msg" class="text-xs font-semibold text-forest">Analyzing your writing & preparing proposed changes...</p>
+                </div>
+
+                <!-- The Actual Editable Document Canvas -->
+                <textarea id="document-canvas" dir="ltr" oninput="onCanvasInput()" placeholder="Begin typing your column, essay, or thesis here—or click 'Import File' at the top to load a .docx, .txt, or .md file...&#10;&#10;• Leave a sentence unfinished and click 'Complete My Sentence'—your buddy will propose a continuation in your tone for you to approve.&#10;• Use the Voice & Command Hub on the left to speak instructions aloud.&#10;• Every edit appears in the Approval Queue above before touching your text." class="flex-1 w-full p-6 sm:p-10 bg-transparent text-ink resize-none focus:outline-none editor-font-en placeholder:font-sans placeholder:text-sm placeholder:text-stone-400"></textarea>
+            </div>
+        </main>
+
+        <!-- =====================================================================
+             RIGHT SIDEBAR: SEARCH & REPLACE + REFERENCE VERIFICATION (3 Cols)
+             ===================================================================== -->
+        <aside class="lg:col-span-3 flex flex-col gap-4">
+
+            <!-- 1. SELECTIVE & GLOBAL WORD / SPELLING FINDER -->
+            <section class="bg-sidebar/90 border border-borderWarm rounded-2xl p-4 shadow-2xs flex flex-col gap-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-7 h-7 rounded-lg bg-forest/10 text-forest flex items-center justify-center">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-semibold text-xs text-ink uppercase tracking-wider">Find & Spelling Audit</h2>
+                            <p class="text-[11px] text-muted">Queue 1 occurrence or all at once</p>
+                        </div>
+                    </div>
+                    <span id="search-hit-badge" class="px-2 py-0.5 rounded-full bg-white border border-borderWarm text-[11px] font-semibold text-ink">0 hits</span>
+                </div>
+
+                <div class="space-y-2">
+                    <input id="find-term-input" type="text" oninput="scanDocumentMatches()" placeholder="Find word (e.g. organization)..." class="w-full rounded-xl border border-borderWarm bg-white px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-forest/30">
+                    <input id="replace-term-input" type="text" placeholder="Replace with (e.g. organisation)..." class="w-full rounded-xl border border-borderWarm bg-white px-3 py-2 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-forest/30">
+                </div>
+
+                <div class="flex items-center justify-between text-[11px] text-muted">
+                    <div class="flex items-center gap-2.5">
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input id="opt-case-match" type="checkbox" onchange="scanDocumentMatches()" class="accent-forest">
+                            <span>Case</span>
+                        </label>
+                        <label class="flex items-center gap-1 cursor-pointer">
+                            <input id="opt-whole-word" type="checkbox" checked onchange="scanDocumentMatches()" class="accent-forest">
+                            <span>Whole word</span>
+                        </label>
+                    </div>
+                    <button onclick="queueAllSearchReplacements()" id="queue-all-replace-btn" disabled class="px-2.5 py-1 rounded-lg bg-brass text-white hover:bg-amber-800 disabled:opacity-40 font-medium transition-colors">
+                        Queue Replace All
+                    </button>
+                </div>
+
+                <!-- Occurrences Context List -->
+                <div id="occurrences-container" class="max-h-60 overflow-y-auto space-y-2 border-t border-borderWarm pt-2.5">
+                    <p class="text-[11px] text-muted text-center py-3">Type a word above to inspect every occurrence in your document.</p>
+                </div>
+            </section>
+
+            <!-- 2. REFERENCE VERIFICATION & FACT-CHECK PANEL -->
+            <section class="bg-sidebar/90 border border-borderWarm rounded-2xl p-4 shadow-2xs flex flex-col gap-3 flex-1">
+                <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-lg bg-forest/10 text-forest flex items-center justify-center">
+                        <i data-lucide="book-check" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-semibold text-xs text-ink uppercase tracking-wider">Reference Verifier</h2>
+                        <p class="text-[11px] text-muted">Check accuracy & get proper citations</p>
+                    </div>
+                </div>
+
+                <textarea id="ref-check-query" rows="3" placeholder="Paste a quote, citation, or claim to verify—or ask 'Is this reference correct?'..." class="w-full rounded-xl border border-borderWarm bg-white p-2.5 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-forest/30 resize-y leading-relaxed"></textarea>
+
+                <button onclick="verifySpecificReference()" class="w-full py-2 px-3 rounded-xl bg-forest text-white hover:bg-forestHover text-xs font-medium flex items-center justify-center gap-1.5 transition-all">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
+                    <span>Verify Reference & Suggest Fix</span>
+                </button>
+
+                <!-- Verification Findings Output -->
+                <div id="ref-verification-output" class="hidden bg-white border border-borderWarm rounded-xl p-3 text-xs text-ink space-y-2 max-h-64 overflow-y-auto leading-relaxed"></div>
+            </section>
+
+        </aside>
+    </div>
+
+    <!-- =========================================================================
+         SETTINGS & API KEY MODAL
+         ========================================================================= -->
+    <div id="settings-modal" class="hidden fixed inset-0 z-50 bg-ink/40 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white border border-borderWarm rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="key-round" class="w-5 h-5 text-forest"></i>
+                    <h3 class="font-semibold text-base text-ink">AI Engine & GitHub/Vercel Setup</h3>
+                </div>
+                <button onclick="closeSettingsModal()" class="text-muted hover:text-ink p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-muted leading-relaxed">
+                Enter your <strong>Google Gemini API Key</strong> to enable live multi-language drafting, Google Search book & archive verification (Al-Islam, Al-Fazl, Review of Religions, Rational Religion, YouTube), and smart voice command understanding. Without a key, built-in local rules still work for testing.
+            </p>
+
+            <div>
+                <label class="block text-xs font-medium text-ink mb-1">Gemini API Key</label>
+                <input id="api-key-field" type="password" placeholder="AIzaSy..." class="w-full rounded-xl border border-borderWarm bg-canvas px-3.5 py-2.5 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-forest/30">
+                <p class="text-[11px] text-muted mt-1">Saved privately in your browser's <code class="bg-sidebar px-1 rounded">localStorage</code>.</p>
+            </div>
+
+            <div class="bg-canvas border border-borderWarm rounded-xl p-3 text-[11px] text-ink space-y-1">
+                <p class="font-semibold text-forest">Deploying on GitHub & Vercel:</p>
+                <p>• Upload this single <code class="font-mono bg-white px-1 rounded">index.html</code> file to your GitHub repo and import into Vercel.</p>
+                <p>• No Supabase database is required; everything runs cleanly in your browser.</p>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-1">
+                <button onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl border border-borderWarm text-xs font-medium text-ink hover:bg-canvas">Close</button>
+                <button onclick="saveApiKey()" class="px-4 py-2 rounded-xl bg-forest text-white text-xs font-medium hover:bg-forestHover">Save Key</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- =========================================================================
+         APPLICATION LOGIC
+         ========================================================================= -->
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Central Application State
+        const appState = {
+            language: 'en',
+            direction: 'ltr',
+            docFilename: 'Untitled_Draft.docx',
+            undoStack: [],
+            proposedChanges: [], // { id, type, description, beforeText, afterText, startIdx, endIdx, checked, sourceNote }
+            selectedDomains: new Set([
+                'alislam.org',
+                'alfazl.com',
+                'reviewofreligions.org',
+                'rationalreligion.co.uk'
+            ]),
+            searchMatches: [],
+            isRecording: false,
+            recognition: null
+        };
+
+        // Language metadata map
+        const LANG_CONFIG = {
+            en: { label: 'English', dir: 'ltr', fontClass: 'editor-font-en', speechCode: 'en-US' },
+            ur: { label: 'اردو (Urdu)', dir: 'rtl', fontClass: 'editor-font-ur', speechCode: 'ur-PK' },
+            ar: { label: 'العربية (Arabic)', dir: 'rtl', fontClass: 'editor-font-ar', speechCode: 'ar-SA' },
+            yo: { label: 'Yorùbá', dir: 'ltr', fontClass: 'editor-font-yo', speechCode: 'yo-NG' }
+        };
+
+        // Restore persisted user preferences on load
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedTitle = localStorage.getItem('qs_custom_title');
+            if (savedTitle) {
+                document.getElementById('app-custom-title').value = savedTitle;
+                document.title = `${savedTitle} — Multilingual Writing Buddy`;
+            }
+
+            const savedKey = localStorage.getItem('qs_gemini_key');
+            if (savedKey) {
+                document.getElementById('api-key-field').value = savedKey;
+                document.getElementById('api-indicator-dot').classList.replace('bg-amber-500', 'bg-emerald-500');
+            }
+
+            loadStyleSampleForLanguage('en');
+            initSpeechRecognition();
+        });
+
+        // ---------------------------------------------------------------------
+        // NOTIFICATIONS & SETTINGS
+        // ---------------------------------------------------------------------
+        function notify(message, variant = 'info') {
+            const stack = document.getElementById('toast-stack');
+            const el = document.createElement('div');
+            const styles = {
+                info: 'bg-ink text-white border-stone-700',
+                success: 'bg-forest text-white border-emerald-900',
+                warning: 'bg-brass text-white border-amber-900',
+                error: 'bg-red-800 text-white border-red-950'
+            };
+            el.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-lg text-xs font-medium flex items-center justify-between gap-3 transition-all ${styles[variant] || styles.info}`;
+            el.innerHTML = `<span>${escapeHtml(message)}</span><button onclick="this.parentElement.remove()" class="opacity-75 hover:opacity-100 text-sm leading-none">&times;</button>`;
+            stack.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 300);
+            }, 4500);
+        }
+
+        function saveCustomTitle(val) {
+            const clean = val.trim() || 'Qalam & Scriptorium';
+            document.getElementById('app-custom-title').value = clean;
+            localStorage.setItem('qs_custom_title', clean);
+            document.title = `${clean} — Multilingual Writing Buddy`;
+            notify(`Studio renamed to "${clean}"`, 'success');
+        }
+
+        function openSettingsModal() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('api-key-field').value.trim();
+            if (key) {
+                localStorage.setItem('qs_gemini_key', key);
+                document.getElementById('api-indicator-dot').classList.replace('bg-amber-500', 'bg-emerald-500');
+                notify('Gemini API key saved locally.', 'success');
+            } else {
+                localStorage.removeItem('qs_gemini_key');
+                document.getElementById('api-indicator-dot').classList.replace('bg-emerald-500', 'bg-amber-500');
+                notify('API key removed.', 'info');
+            }
+            closeSettingsModal();
+        }
+
+        // ---------------------------------------------------------------------
+        // LANGUAGE, DIRECTION & TONE VAULT
+        // ---------------------------------------------------------------------
+        function setLanguage(lang) {
+            appState.language = lang;
+            const cfg = LANG_CONFIG[lang] || LANG_CONFIG.en;
+
+            // Update pill styling
+            document.querySelectorAll('.lang-pill').forEach(btn => {
+                btn.className = 'lang-pill px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-muted hover:text-ink';
+            });
+            const activeBtn = document.getElementById(`lang-btn-${lang}`);
+            if (activeBtn) {
+                activeBtn.className = 'lang-pill px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all bg-white text-forest shadow-2xs';
+            }
+
+            // Update canvas font & direction
+            const canvas = document.getElementById('document-canvas');
+            canvas.classList.remove('editor-font-en', 'editor-font-ur', 'editor-font-ar', 'editor-font-yo');
+            canvas.classList.add(cfg.fontClass);
+            applyDirection(cfg.dir);
+
+            // Sync voice recognition language & tone vault
+            document.getElementById('voice-lang-select').value = cfg.speechCode;
+            document.getElementById('tone-lang-label').textContent = cfg.label;
+            loadStyleSampleForLanguage(lang);
+        }
+
+        function applyDirection(dir) {
+            appState.direction = dir;
+            const canvas = document.getElementById('document-canvas');
+            const styleInput = document.getElementById('style-sample-input');
+            canvas.setAttribute('dir', dir);
+            styleInput.setAttribute('dir', dir);
+            document.getElementById('manual-dir-btn').textContent = dir.toUpperCase();
+        }
+
+        function toggleManualDirection() {
+            applyDirection(appState.direction === 'ltr' ? 'rtl' : 'ltr');
+        }
+
+        function saveStyleSample() {
+            const val = document.getElementById('style-sample-input').value.trim();
+            localStorage.setItem(`qs_tone_${appState.language}`, val);
+            notify(`Saved your ${LANG_CONFIG[appState.language].label} writing tone reference.`, 'success');
+        }
+
+        function loadStyleSampleForLanguage(lang) {
+            const saved = localStorage.getItem(`qs_tone_${lang}`) || '';
+            document.getElementById('style-sample-input').value = saved;
+        }
+
+        function toggleArchiveDomain(btn) {
+            const domain = btn.dataset.domain;
+            if (appState.selectedDomains.has(domain)) {
+                appState.selectedDomains.delete(domain);
+                btn.className = 'archive-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white text-muted border border-borderWarm hover:text-ink transition-all';
+            } else {
+                appState.selectedDomains.add(domain);
+                btn.className = 'archive-chip px-2.5 py-1 rounded-lg text-[11px] font-medium bg-forest text-white border border-forest transition-all';
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // VOICE COMMAND & INSTRUCTION HUB (WEB SPEECH API)
+        // ---------------------------------------------------------------------
+        function initSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return;
+
+            const recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+
+            recognition.onstart = () => {
+                appState.isRecording = true;
+                const btn = document.getElementById('mic-toggle-btn');
+                btn.classList.add('mic-recording');
+                document.getElementById('mic-btn-label').textContent = 'Listening... (Click to Stop)';
+                document.getElementById('voice-waveform').classList.remove('hidden');
+                document.getElementById('voice-waveform').classList.add('flex');
+            };
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = 0; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                document.getElementById('command-input').value = transcript;
+            };
+
+            recognition.onerror = (event) => {
+                stopVoiceRecognition();
+                if (event.error !== 'aborted') {
+                    notify(`Microphone notice: ${event.error}. You can also type your instruction directly.`, 'warning');
+                }
+            };
+
+            recognition.onend = () => {
+                stopVoiceRecognition();
+            };
+
+            appState.recognition = recognition;
+        }
+
+        function toggleVoiceRecognition() {
+            if (!appState.recognition) {
+                notify('Voice recognition is not supported in this browser. Please type your command in the box.', 'warning');
+                return;
+            }
+            if (appState.isRecording) {
+                appState.recognition.stop();
+            } else {
+                appState.recognition.lang = document.getElementById('voice-lang-select').value;
+                try {
+                    appState.recognition.start();
+                } catch (err) {
+                    notify('Could not start microphone. Please check browser permissions.', 'error');
+                }
+            }
+        }
+
+        function stopVoiceRecognition() {
+            appState.isRecording = false;
+            const btn = document.getElementById('mic-toggle-btn');
+            btn.classList.remove('mic-recording');
+            document.getElementById('mic-btn-label').textContent = 'Speak Instruction';
+            document.getElementById('voice-waveform').classList.add('hidden');
+            document.getElementById('voice-waveform').classList.remove('flex');
+        }
+
+        // ---------------------------------------------------------------------
+        // FILE IMPORT (.DOCX, .TXT, .MD) & EXPORT (.DOCX, .MD, .TXT)
+        // ---------------------------------------------------------------------
+        async function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const name = file.name;
+            const ext = name.split('.').pop().toLowerCase();
+            setCanvasLoading(true, `Importing ${name}...`);
+
+            try {
+                let extractedText = '';
+                if (ext === 'docx') {
+                    if (typeof mammoth === 'undefined') {
+                        throw new Error('DOCX reader library is still loading. Please try again in a moment.');
+                    }
+                    const arrayBuffer = await file.arrayBuffer();
+                    const result = await mammoth.extractRawText({ arrayBuffer });
+                    extractedText = result.value;
+                } else if (ext === 'txt' || ext === 'md') {
+                    extractedText = await file.text();
+                } else {
+                    throw new Error('Unsupported file format. Please select a .docx, .txt, or .md file.');
+                }
+
+                pushUndoSnapshot();
+                const canvas = document.getElementById('document-canvas');
+                canvas.value = extractedText.trim();
+                appState.docFilename = name;
+                document.getElementById('current-doc-name').textContent = name;
+                document.getElementById('dirty-indicator').classList.add('hidden');
+                onCanvasInput();
+                notify(`Imported "${name}" successfully.`, 'success');
+            } catch (err) {
+                notify(err.message || 'Failed to import document.', 'error');
+            } finally {
+                setCanvasLoading(false);
+                event.target.value = '';
+            }
+        }
+
+        function toggleExportMenu() {
+            document.getElementById('export-dropdown').classList.toggle('hidden');
+        }
+
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('#export-menu-btn') && !e.target.closest('#export-dropdown')) {
+                document.getElementById('export-dropdown').classList.add('hidden');
+            }
+        });
+
+        function getBaseExportName() {
+            return appState.docFilename.replace(/\.(docx|txt|md)$/i, '') || 'Qalam_Document';
+        }
+
+        async function exportAsDocx() {
+            document.getElementById('export-dropdown').classList.add('hidden');
+            const text = document.getElementById('document-canvas').value;
+            if (!text.trim()) {
+                notify('Your document is empty—nothing to export yet.', 'warning');
+                return;
+            }
+
+            try {
+                if (!window.docx) {
+                    throw new Error('Word export library not loaded. Downloading as .txt instead.');
+                }
+                const { Document, Packer, Paragraph, TextRun } = window.docx;
+                const isRtl = appState.direction === 'rtl';
+                const paragraphs = text.split(/\n+/).map(line => new Paragraph({
+                    bidirectional: isRtl,
+                    spacing: { after: 200, line: 340 },
+                    children: [
+                        new TextRun({
+                            text: line,
+                            rightToLeft: isRtl,
+                            size: 24 // 12pt
+                        })
+                    ]
+                }));
+
+                const doc = new Document({
+                    sections: [{
+                        properties: {},
+                        children: paragraphs
+                    }]
+                });
+
+                const blob = await Packer.toBlob(doc);
+                triggerBlobDownload(blob, `${getBaseExportName()}_edited.docx`);
+                notify('Exported Microsoft Word (.docx) file.', 'success');
+            } catch (err) {
+                notify(err.message, 'error');
+                exportAsTxt();
+            }
+        }
+
+        function exportAsMarkdown() {
+            document.getElementById('export-dropdown').classList.add('hidden');
+            const text = document.getElementById('document-canvas').value;
+            if (!text.trim()) {
+                notify('Your document is empty.', 'warning');
+                return;
+            }
+            const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+            triggerBlobDownload(blob, `${getBaseExportName()}_edited.md`);
+            notify('Exported Markdown (.md) file.', 'success');
+        }
+
+        function exportAsTxt() {
+            document.getElementById('export-dropdown').classList.add('hidden');
+            const text = document.getElementById('document-canvas').value;
+            if (!text.trim()) {
+                notify('Your document is empty.', 'warning');
+                return;
+            }
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            triggerBlobDownload(blob, `${getBaseExportName()}_edited.txt`);
+            notify('Exported Plain Text (.txt) file.', 'success');
+        }
+
+        function triggerBlobDownload(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // ---------------------------------------------------------------------
+        // CANVAS & UNDO MANAGEMENT
+        // ---------------------------------------------------------------------
+        function onCanvasInput() {
+            const text = document.getElementById('document-canvas').value;
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            document.getElementById('sheet-word-count').textContent = `${words} ${words === 1 ? 'word' : 'words'}`;
+            document.getElementById('sheet-char-count').textContent = `${text.length} chars`;
+            if (document.getElementById('find-term-input').value.trim()) {
+                scanDocumentMatches();
+            }
+        }
+
+        function pushUndoSnapshot() {
+            const current = document.getElementById('document-canvas').value;
+            appState.undoStack.push(current);
+            document.getElementById('undo-apply-btn').disabled = false;
+        }
+
+        function undoLastApplied() {
+            if (appState.undoStack.length === 0) return;
+            const previous = appState.undoStack.pop();
+            document.getElementById('document-canvas').value = previous;
+            document.getElementById('undo-apply-btn').disabled = appState.undoStack.length === 0;
+            onCanvasInput();
+            notify('Reverted to previous version.', 'info');
+        }
+
+        function copyCanvasText() {
+            const canvas = document.getElementById('document-canvas');
+            canvas.select();
+            document.execCommand('copy');
+            window.getSelection().removeAllRanges();
+            notify('Copied document text to clipboard.', 'success');
+        }
+
+        function setCanvasLoading(isLoading, msg = 'Working...') {
+            const loader = document.getElementById('canvas-loader');
+            document.getElementById('canvas-loader-msg').textContent = msg;
+            if (isLoading) {
+                loader.classList.remove('hidden');
+            } else {
+                loader.classList.add('hidden');
+            }
+        }
+
+        function loadDemoColumn() {
+            pushUndoSnapshot();
+            setLanguage('en');
+            const demoText = `In modern academic discourse, any scholarly organization must examine how moral philosophy shapes public life. Yet when an organization overlooks classical spiritual texts, its conclusions remain incomplete.\n\nIn The Philosophy of the Teachings of Islam, Hazrat Mirza Ghulam Ahmad explains that true peace arises when physical, moral, and spiritual states are harmonized. As noted on Al-Islam.org, this framework bridges reason and revelation.\n\nHowever, when we look closely at contemporary media columns, we often notice that writers rush their final thought and leave a sentence hanging midway without`;
+            document.getElementById('document-canvas').value = demoText;
+            document.getElementById('current-doc-name').textContent = 'Sample_Column_Draft.docx';
+            onCanvasInput();
+            notify('Loaded sample draft! Try searching "organization", clicking "Complete My Sentence", or speaking a command.', 'info');
+        }
+
+        // ---------------------------------------------------------------------
+        // SELECTIVE & GLOBAL WORD SEARCH (ROUTES TO APPROVAL QUEUE)
+        // ---------------------------------------------------------------------
+        function scanDocumentMatches() {
+            const query = document.getElementById('find-term-input').value;
+            const container = document.getElementById('occurrences-container');
+            const badge = document.getElementById('search-hit-badge');
+            const queueAllBtn = document.getElementById('queue-all-replace-btn');
+
+            if (!query) {
+                appState.searchMatches = [];
+                badge.textContent = '0 hits';
+                queueAllBtn.disabled = true;
+                container.innerHTML = `<p class="text-[11px] text-muted text-center py-3">Type a word above to inspect every occurrence in your document.</p>`;
+                return;
+            }
+
+            const text = document.getElementById('document-canvas').value;
+            const caseSensitive = document.getElementById('opt-case-match').checked;
+            const wholeWord = document.getElementById('opt-whole-word').checked;
+
+            const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const pattern = wholeWord ? `\\b${escaped}\\b` : escaped;
+            const flags = caseSensitive ? 'g' : 'gi';
+            const regex = new RegExp(pattern, flags);
+
+            const matches = [];
+            let m;
+            while ((m = regex.exec(text)) !== null) {
+                if (m[0].length === 0) break;
+                const start = m.index;
+                const end = start + m[0].length;
+                const ctxStart = Math.max(0, start - 28);
+                const ctxEnd = Math.min(text.length, end + 28);
+                matches.push({
+                    index: matches.length + 1,
+                    matchedText: m[0],
+                    start,
+                    end,
+                    beforeCtx: (ctxStart > 0 ? '…' : '') + text.slice(ctxStart, start),
+                    afterCtx: text.slice(end, ctxEnd) + (ctxEnd < text.length ? '…' : '')
+                });
+            }
+
+            appState.searchMatches = matches;
+            badge.textContent = `${matches.length} ${matches.length === 1 ? 'hit' : 'hits'}`;
+            queueAllBtn.disabled = matches.length === 0;
+
+            if (matches.length === 0) {
+                container.innerHTML = `<p class="text-[11px] text-muted text-center py-3">No occurrences of "${escapeHtml(query)}" found.</p>`;
+                return;
+            }
+
+            container.innerHTML = matches.map((item, idx) => `
+                <div class="bg-white border border-borderWarm rounded-xl p-2.5 text-[11px] flex flex-col gap-1.5 hover:border-forest/50 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <span class="font-semibold text-forest">Occurrence #${item.index}</span>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="highlightOccurrenceInCanvas(${idx})" class="text-muted hover:text-ink underline">Locate</button>
+                            <button onclick="queueSingleReplacement(${idx})" class="px-2 py-0.5 rounded-md bg-amber-100 text-brass hover:bg-amber-200 font-semibold">
+                                Queue Fix
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-stone-600 leading-snug break-words">
+                        ${escapeHtml(item.beforeCtx)}<mark class="bg-amber-200 text-ink font-semibold px-0.5 rounded">${escapeHtml(item.matchedText)}</mark>${escapeHtml(item.afterCtx)}
+                    </p>
+                </div>
+            `).join('');
+        }
+
+        function highlightOccurrenceInCanvas(idx) {
+            const match = appState.searchMatches[idx];
+            if (!match) return;
+            const canvas = document.getElementById('document-canvas');
+            canvas.focus();
+            canvas.setSelectionRange(match.start, match.end);
+        }
+
+        function queueSingleReplacement(idx) {
+            const match = appState.searchMatches[idx];
+            const replacement = document.getElementById('replace-term-input').value;
+            if (!match) return;
+            if (!replacement) {
+                notify('Enter the replacement spelling in the "Replace with" box first.', 'warning');
+                document.getElementById('replace-term-input').focus();
+                return;
+            }
+
+            addProposedChanges([{
+                id: `rep_${Date.now()}_${idx}`,
+                type: 'Spelling / Word Edit',
+                description: `Occurrence #${match.index}: Replace "${match.matchedText}" with "${replacement}"`,
+                beforeText: `${match.beforeCtx}${match.matchedText}${match.afterCtx}`,
+                afterText: `${match.beforeCtx}${replacement}${match.afterCtx}`,
+                targetExact: match.matchedText,
+                replacementExact: replacement,
+                startIdx: match.start,
+                endIdx: match.end,
+                checked: true,
+                sourceNote: 'Selective Find & Replace'
+            }]);
+            notify(`Added Occurrence #${match.index} to Approval Queue.`, 'info');
+        }
+
+        function queueAllSearchReplacements() {
+            const replacement = document.getElementById('replace-term-input').value;
+            if (!replacement) {
+                notify('Enter the replacement spelling in the "Replace with" box first.', 'warning');
+                document.getElementById('replace-term-input').focus();
+                return;
+            }
+            if (appState.searchMatches.length === 0) return;
+
+            const batch = appState.searchMatches.map((match, idx) => ({
+                id: `rep_all_${Date.now()}_${idx}`,
+                type: 'Global Spelling Edit',
+                description: `Occurrence #${match.index} of ${appState.searchMatches.length}`,
+                beforeText: `${match.beforeCtx}${match.matchedText}${match.afterCtx}`,
+                afterText: `${match.beforeCtx}${replacement}${match.afterCtx}`,
+                targetExact: match.matchedText,
+                replacementExact: replacement,
+                startIdx: match.start,
+                endIdx: match.end,
+                checked: true,
+                sourceNote: 'Global Spelling Audit'
+            }));
+
+            addProposedChanges(batch);
+            notify(`Queued ${batch.length} replacements for your approval.`, 'info');
+        }
+
+        // ---------------------------------------------------------------------
+        // HUMAN-IN-THE-LOOP CHANGE APPROVAL QUEUE ("APPROVE BEFORE CHANGING")
+        // ---------------------------------------------------------------------
+        function addProposedChanges(newItems) {
+            appState.proposedChanges = [...appState.proposedChanges, ...newItems];
+            renderApprovalDrawer();
+            focusApprovalDrawer();
+        }
+
+        function renderApprovalDrawer() {
+            const drawer = document.getElementById('approval-drawer');
+            const list = document.getElementById('proposed-changes-list');
+            const headerPill = document.getElementById('header-approval-pill');
+            const headerCount = document.getElementById('header-approval-count');
+            const summary = document.getElementById('selected-changes-summary');
+
+            if (appState.proposedChanges.length === 0) {
+                drawer.classList.add('hidden');
+                headerPill.classList.add('hidden');
+                headerPill.classList.remove('flex');
+                return;
+            }
+
+            drawer.classList.remove('hidden');
+            headerPill.classList.remove('hidden');
+            headerPill.classList.add('flex');
+
+            const checkedCount = appState.proposedChanges.filter(c => c.checked).length;
+            headerCount.textContent = `${appState.proposedChanges.length} Pending`;
+            summary.textContent = `${checkedCount} of ${appState.proposedChanges.length} changes selected to apply`;
+            document.getElementById('confirm-apply-btn').disabled = checkedCount === 0;
+
+            list.innerHTML = appState.proposedChanges.map((item, idx) => `
+                <div class="bg-white border ${item.checked ? 'border-forest/40' : 'border-borderWarm opacity-65'} rounded-xl p-3 text-xs space-y-2 transition-all">
+                    <div class="flex items-start justify-between gap-2">
+                        <label class="flex items-start gap-2 cursor-pointer flex-1">
+                            <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleSingleProposed(${idx})" class="mt-0.5 accent-forest w-4 h-4 rounded">
+                            <div>
+                                <span class="inline-block px-2 py-0.5 rounded-md bg-sidebar text-ink font-semibold text-[10px] mr-1.5">${escapeHtml(item.type)}</span>
+                                <span class="font-medium text-ink">${escapeHtml(item.description)}</span>
+                            </div>
+                        </label>
+                        <button onclick="removeSingleProposed(${idx})" class="text-muted hover:text-red-700 text-[11px] shrink-0" title="Reject this change">Reject</button>
+                    </div>
+
+                    <!-- Before / After Diff View -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                        ${item.beforeText ? `
+                        <div class="bg-red-50/70 border border-red-200/80 rounded-lg p-2">
+                            <span class="block text-[10px] font-bold uppercase text-red-800 mb-0.5">Before</span>
+                            <p class="text-red-950 line-through decoration-red-400 break-words leading-relaxed">${escapeHtml(item.beforeText)}</p>
+                        </div>` : `
+                        <div class="bg-canvas border border-borderWarm rounded-lg p-2 flex items-center text-[11px] text-muted italic">
+                            New continuation / passage insertion
+                        </div>`}
+                        <div class="bg-emerald-50/80 border border-emerald-200 rounded-lg p-2">
+                            <span class="block text-[10px] font-bold uppercase text-forest mb-0.5">Proposed After</span>
+                            <p class="text-emerald-950 font-medium break-words leading-relaxed">${escapeHtml(item.afterText)}</p>
+                        </div>
+                    </div>
+
+                    ${item.sourceNote ? `<p class="text-[11px] text-muted flex items-center gap-1"><i data-lucide="info" class="w-3 h-3 text-forest"></i> ${escapeHtml(item.sourceNote)}</p>` : ''}
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function toggleSingleProposed(idx) {
+            appState.proposedChanges[idx].checked = !appState.proposedChanges[idx].checked;
+            renderApprovalDrawer();
+        }
+
+        function toggleAllProposed(val) {
+            appState.proposedChanges.forEach(c => c.checked = val);
+            renderApprovalDrawer();
+        }
+
+        function removeSingleProposed(idx) {
+            appState.proposedChanges.splice(idx, 1);
+            renderApprovalDrawer();
+        }
+
+        function discardAllProposed() {
+            appState.proposedChanges = [];
+            renderApprovalDrawer();
+            notify('Discarded proposed changes. Your document was untouched.', 'info');
+        }
+
+        function focusApprovalDrawer() {
+            const drawer = document.getElementById('approval-drawer');
+            drawer.classList.remove('hidden');
+            drawer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function applyApprovedChanges() {
+            const approved = appState.proposedChanges.filter(c => c.checked);
+            if (approved.length === 0) return;
+
+            pushUndoSnapshot();
+            let text = document.getElementById('document-canvas').value;
+
+            // Separate positional index edits (apply right-to-left so indices stay valid) vs text/block edits
+            const positionalEdits = approved
+                .filter(c => typeof c.startIdx === 'number' && typeof c.endIdx === 'number')
+                .sort((a, b) => b.startIdx - a.startIdx);
+
+            const contentEdits = approved.filter(c => typeof c.startIdx !== 'number');
+
+            for (const edit of positionalEdits) {
+                text = text.slice(0, edit.startIdx) + edit.replacementExact + text.slice(edit.endIdx);
+            }
+
+            for (const edit of contentEdits) {
+                if (edit.mode === 'full_replace') {
+                    text = edit.afterText;
+                } else if (edit.mode === 'append') {
+                    const needsSpace = text.length > 0 && !/[\s\n]$/.test(text);
+                    text = text + (needsSpace ? ' ' : '') + edit.afterText;
+                } else if (edit.beforeText && text.includes(edit.beforeText)) {
+                    text = text.replace(edit.beforeText, edit.afterText);
+                } else {
+                    text = text + '\n\n' + edit.afterText;
+                }
+            }
+
+            document.getElementById('document-canvas').value = text;
+            document.getElementById('dirty-indicator').classList.remove('hidden');
+            appState.proposedChanges = [];
+            renderApprovalDrawer();
+            onCanvasInput();
+            notify(`Applied ${approved.length} approved ${approved.length === 1 ? 'change' : 'changes'}!`, 'success');
+        }
+
+        // ---------------------------------------------------------------------
+        // AI WRITING BUDDY ENGINE (GEMINI API + SMART OFFLINE FALLBACK)
+        // ---------------------------------------------------------------------
+        function getActiveSourcesContext() {
+            const book = document.getElementById('source-book-input').value.trim();
+            const url = document.getElementById('source-url-input').value.trim();
+            const domains = Array.from(appState.selectedDomains);
+            const scope = document.getElementById('source-scope-select').value;
+            return { book, url, domains, scope };
+        }
+
+        async function executeBuddyCommand() {
+            const cmd = document.getElementById('command-input').value.trim();
+            const docText = document.getElementById('document-canvas').value;
+
+            if (!cmd) {
+                notify('Speak or type an instruction first (e.g., "Complete my sentence" or "Change organisation to organization").', 'warning');
+                return;
+            }
+
+            // Smart local detection for direct Find & Replace voice/text commands
+            const replaceRegex = /(?:change|replace|correct)\s+(?:all\s+(?:places\s+i\s+used\s+)?)?["']?([a-zA-Z\u0600-\u06FF\u0100-\u017F-]+)["']?\s+(?:to|with)\s+["']?([a-zA-Z\u0600-\u06FF\u0100-\u017F-]+)["']?/i;
+            const matchCmd = cmd.match(replaceRegex);
+            if (matchCmd && docText.trim()) {
+                document.getElementById('find-term-input').value = matchCmd[1];
+                document.getElementById('replace-term-input').value = matchCmd[2];
+                scanDocumentMatches();
+                if (appState.searchMatches.length > 0) {
+                    queueAllSearchReplacements();
+                    return;
+                }
+            }
+
+            await generateProposedEditsFromAI(cmd);
+        }
+
+        async function quickProposeAction(actionType) {
+            const prompts = {
+                join_fix: 'Join fragmented sentences/paragraphs smoothly, fix grammar and punctuation while preserving my exact meaning and voice.',
+                complete_sentence: 'Complete the unfinished sentence at the very end of my text seamlessly in my personal writing tone.',
+                verify_all_refs: 'Audit all quotes, book titles, and references in my text for accuracy and suggest verified corrections or citations.'
+            };
+            await generateProposedEditsFromAI(prompts[actionType] || prompts.join_fix, actionType);
+        }
+
+        async function consultSourcesAndDraft() {
+            const { book, url, domains } = getActiveSourcesContext();
+            if (!book && !url && domains.length === 0) {
+                notify('Enter a book title, URL/YouTube link, or select at least one archive on the left.', 'warning');
+                return;
+            }
+            const prompt = `Consult the specified book (${book || 'none'}), URL/YouTube (${url || 'none'}), and archives (${domains.join(', ')}) to draft a well-cited passage or continue my current writing in my tone.`;
+            await generateProposedEditsFromAI(prompt, 'source_draft');
+        }
+
+        async function verifySpecificReference() {
+            const query = document.getElementById('ref-check-query').value.trim() || document.getElementById('document-canvas').value.trim();
+            if (!query) {
+                notify('Paste a quote/reference to verify or add text to your document first.', 'warning');
+                return;
+            }
+
+            const outBox = document.getElementById('ref-verification-output');
+            outBox.classList.remove('hidden');
+            outBox.innerHTML = `<div class="flex items-center gap-2 text-forest font-medium"><div class="loader-ring"></div><span>Checking reference accuracy across sources...</span></div>`;
+
+            const apiKey = localStorage.getItem('qs_gemini_key');
+            const { book, url, domains } = getActiveSourcesContext();
+
+            if (!apiKey) {
+                setTimeout(() => {
+                    outBox.innerHTML = `
+                        <p class="font-semibold text-forest">Verification Preview (Add Gemini API Key in Settings for Live Web Search):</p>
+                        <p>Target Archives: <span class="font-medium">${escapeHtml(domains.join(', ') || 'General Web')}</span></p>
+                        ${book ? `<p>Book Checked: <strong>${escapeHtml(book)}</strong></p>` : ''}
+                        ${url ? `<p>URL Checked: <strong>${escapeHtml(url)}</strong></p>` : ''}
+                        <p class="text-muted">Tip: Add your free Gemini API key in the top-right Settings icon to enable live Google Search verification across Al-Islam.org, Al-Fazl, Review of Religions, Rational Religion, and YouTube.</p>
+                    `;
+                }, 500);
+                return;
+            }
+
+            try {
+                const systemInstruction = `You are a meticulous scholarly reference verifier for columns and theses. Check whether the user's quote, citation, or claim is accurate using Google Search, prioritizing: ${domains.join(', ')}${book ? `, Book: "${book}"` : ''}${url ? `, URL: ${url}` : ''}. State clearly if it is accurate, partially accurate, or needs correction, and provide the exact verified citation.`;
+                const responseText = await callGeminiWithSearch(apiKey, systemInstruction, `Verify this reference/passage:\n\n${query}`);
+                outBox.innerHTML = `<div class="space-y-1.5 whitespace-pre-wrap">${escapeHtml(responseText)}</div>`;
+            } catch (err) {
+                outBox.innerHTML = `<p class="text-red-700 font-medium">Verification error: ${escapeHtml(err.message)}</p>`;
+            }
+        }
+
+        async function generateProposedEditsFromAI(instruction, hintType = 'custom') {
+            const docText = document.getElementById('document-canvas').value;
+            const toneSample = document.getElementById('style-sample-input').value.trim();
+            const langCfg = LANG_CONFIG[appState.language];
+            const { book, url, domains, scope } = getActiveSourcesContext();
+            const apiKey = localStorage.getItem('qs_gemini_key');
+
+            setCanvasLoading(true, 'Preparing proposed edits for your review...');
+
+            try {
+                if (!apiKey) {
+                    // Built-in intelligent offline demo fallback so user can test the Approval Drawer immediately
+                    await new Promise(r => setTimeout(r, 550));
+                    const proposals = buildOfflineFallbackProposals(docText, instruction, hintType, { book, url, domains });
+                    addProposedChanges(proposals);
+                    notify('Demo mode: Proposed edits added to Approval Queue (Add Gemini API key in Settings for full AI + Web Search).', 'info');
+                    return;
+                }
+
+                const systemPrompt = `You are "Writing Buddy", a multilingual editorial assistant for columns and academic theses.
+Target Language: ${langCfg.label} (${langCfg.dir.toUpperCase()}).
+User's Writing Tone Sample (match this cadence, vocabulary, and scholarly register):
+"""
+${toneSample || 'Clear, thoughtful, eloquent scholarly and journalistic prose.'}
+"""
+Reference Sources to Consult:
+- Book Title (search online, no PDF attached): ${book || 'None specified'}
+- Specific URL / YouTube Link: ${url || 'None specified'}
+- Trusted Domains: ${domains.join(', ') || 'None specified'}
+- Scope Rule: ${scope === 'strict_only' ? 'ONLY rely on the specified URL/Book above.' : 'Prioritize the specified Book/URL/Domains and verify via Google Search.'}
+
+CRITICAL OUTPUT FORMAT:
+Return ONLY valid JSON (no markdown fences) containing an array of proposed edits under key "changes". Every item must follow:
+{
+  "changes": [
+    {
+      "type": "Sentence Completion | Grammar & Flow | Verified Citation | Spelling Fix",
+      "description": "Brief explanation of why this edit is proposed",
+      "mode": "replace_snippet | append | full_replace",
+      "beforeText": "Exact substring from the user's current document to replace (leave empty string if mode is append)",
+      "afterText": "The proposed improved/completed/cited text in ${langCfg.label}",
+      "sourceNote": "Book, website, or tone note supporting this change"
+    }
+  ]
+}
+Only propose changes that directly fulfill the user's instruction.`;
+
+                const userPrompt = `User Instruction: ${instruction}\n\nCurrent Document Text:\n"""\n${docText || '(Document is currently empty — draft an opening based on the instruction/sources)'}\n"""`;
+
+                const rawReply = await callGeminiWithSearch(apiKey, systemPrompt, userPrompt);
+                const parsed = extractJsonFromText(rawReply);
+
+                if (!parsed || !Array.isArray(parsed.changes) || parsed.changes.length === 0) {
+                    throw new Error('Could not structure proposed changes. Try giving a more specific instruction.');
+                }
+
+                const formatted = parsed.changes.map((c, i) => ({
+                    id: `ai_${Date.now()}_${i}`,
+                    type: c.type || 'Suggested Edit',
+                    description: c.description || instruction,
+                    mode: c.mode || (c.beforeText ? 'replace_snippet' : 'append'),
+                    beforeText: c.beforeText || '',
+                    afterText: c.afterText || '',
+                    checked: true,
+                    sourceNote: c.sourceNote || 'AI Writing Buddy'
+                }));
+
+                addProposedChanges(formatted);
+                notify(`Prepared ${formatted.length} proposed ${formatted.length === 1 ? 'change' : 'changes'} for your approval.`, 'success');
+            } catch (err) {
+                notify(err.message || 'Failed to generate proposed edits.', 'error');
+            } finally {
+                setCanvasLoading(false);
+            }
+        }
+
+        async function callGeminiWithSearch(apiKey, systemInstruction, userPrompt) {
+            const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+            const payload = {
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+                contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
+                tools: [{ googleSearch: {} }],
+                generationConfig: {
+                    temperature: 0.35
+                }
+            };
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData?.error?.message || `Gemini API error (${res.status})`);
+            }
+
+            const data = await res.json();
+            return data?.candidates?.[0]?.content?.parts?.map(p => p.text).join('') || '';
+        }
+
+        function extractJsonFromText(text) {
+            try {
+                return JSON.parse(text.trim());
+            } catch {
+                const match = text.match(/\{[\s\S]*\}/);
+                if (match) {
+                    return JSON.parse(match[0]);
+                }
+                return null;
+            }
+        }
+
+        function buildOfflineFallbackProposals(docText, instruction, hintType, sources) {
+            const trimmed = docText.trim();
+            if (hintType === 'complete_sentence' || /complete/i.test(instruction)) {
+                const tail = trimmed.slice(-90);
+                const completion = appState.language === 'ur'
+                    ? ' اور یہی وہ بنیادی اصول ہے جو انسان کو حقیقی روحانی ترقی اور معاشرتی ہم آہنگی کی طرف رہنمائی کرتا ہے۔'
+                    : appState.language === 'ar'
+                    ? ' وهذا هو المبدأ الأساسي الذي يقود الإنسان نحو الرقي الروحي الحقيقي والوئام الاجتماعي.'
+                    : appState.language === 'yo'
+                    ? ' ati pé ìlànà yìí gan-an ni ó ń darí ènìyàn sí ìdàgbàsókè ẹ̀mí tòótọ́ àti àlàáfíà àwùjọ.'
+                    : ' pausing to reflect on the deeper moral coherence that binds enduring scholarship to lived spiritual practice.';
+                return [{
+                    id: `demo_${Date.now()}`,
+                    type: 'Sentence Completion',
+                    description: 'Completed your unfinished trailing thought in your scholarly tone',
+                    mode: 'append',
+                    beforeText: tail ? `…${tail}` : '',
+                    afterText: completion,
+                    checked: true,
+                    sourceNote: 'Matched to your saved tone profile (Offline Preview)'
+                }];
+            }
+
+            if (hintType === 'source_draft' || sources.book || sources.url) {
+                const refLabel = sources.book || sources.url || Array.from(sources.domains).join(', ');
+                return [{
+                    id: `demo_src_${Date.now()}`,
+                    type: 'Verified Citation & Passage',
+                    description: `Drafted reference note consulting ${refLabel}`,
+                    mode: 'append',
+                    beforeText: '',
+                    afterText: `\n\nAs elaborated in ${refLabel}, true intellectual clarity requires aligning empirical inquiry with higher ethical accountability—a principle consistently emphasized across classical and contemporary scholarship.`,
+                    checked: true,
+                    sourceNote: `Source consulted: ${refLabel}`
+                }];
+            }
+
+            return [{
+                id: `demo_polish_${Date.now()}`,
+                type: 'Grammar & Flow Polish',
+                description: 'Smoothed paragraph transitions and tightened academic phrasing',
+                mode: trimmed ? 'full_replace' : 'append',
+                beforeText: trimmed || '',
+                afterText: trimmed
+                    ? trimmed.replace(/\s{2,}/g, ' ').replace(/without\s*$/i, 'without offering a constructive synthesis grounded in primary sources.')
+                    : 'True scholarship begins with clarity of intention, fidelity to primary sources, and a voice that speaks with measured conviction.',
+                checked: true,
+                sourceNote: 'Editorial clarity & flow pass'
+            }];
+        }
+
+        function escapeHtml(str) {
+            return String(str || '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
