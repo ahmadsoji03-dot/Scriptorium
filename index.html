@@ -61,8 +61,9 @@
     .export-change-entry { border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 9px 11px; background: var(--bg-canvas); display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
     .export-change-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--ink-muted); }
     .export-summary-strip { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 8px 11px; background: var(--bg-subtle); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); font-size: 12px; }
-    .review-scope-note { font-size: 11px; color: var(--ink-secondary); background: var(--bg-subtle); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); padding: 6px 9px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-    .review-scope-badge { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 6px; border-radius: 3px; background: var(--ink-primary); color: #FFFFFF; }
+    .scope-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 3px; background: var(--bg-subtle); border: 1px solid var(--border-strong); color: var(--ink-primary); }
+    .scope-badge.exact-box { background: #F7F5EE; border-color: var(--ink-primary); }
+    .book-tag-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 4px 8px; border-radius: var(--radius-sm); background: var(--bg-subtle); border: 1px solid var(--border-hairline); color: var(--ink-primary); }
     .chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
     .chip { font-size: 11.5px; padding: 4px 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); background: var(--bg-canvas); color: var(--ink-secondary); cursor: pointer; transition: all 0.12s ease; }
     .chip:hover { border-color: var(--ink-primary); color: var(--ink-primary); background: var(--bg-surface); }
@@ -148,17 +149,6 @@
             <span class="chip" data-cmd="Join fragmented sentences smoothly while keeping my voice">Join Fragments</span>
             <span class="chip" data-cmd="Check all English spellings to British English">British Spellings</span>
           </div>
-          <div style="margin-top: 6px;">
-            <div class="section-label" style="margin-bottom: 5px;">
-              <span>Exact Sentence / Passage to Review (Optional)</span>
-              <button type="button" class="btn btn-xs" id="clearReviewTargetBtn">Clear</button>
-            </div>
-            <textarea id="reviewTargetInput" rows="3" placeholder="Paste the exact sentence or passage you want to review here. Leave blank to review the entire file."></textarea>
-            <div class="review-scope-note" style="margin-top: 5px;">
-              <span id="reviewScopeText">Reviewing: Entire File</span>
-              <span class="review-scope-badge" id="reviewScopeBadge">Entire File</span>
-            </div>
-          </div>
           <button type="button" class="btn btn-primary" id="runCommandBtn" style="margin-top: 4px; width: 100%;">Generate Itemized List</button>
         </div>
       </div>
@@ -243,15 +233,32 @@
       </div>
       <div class="divider"></div>
       <div>
-        <div class="section-label"><span>Open-Web Fact &amp; Reference Verifier</span></div>
+        <div class="section-label">
+          <span>Open-Web Fact &amp; Reference Verifier</span>
+          <span class="scope-badge" id="reviewScopeIndicator">Scope: Entire File</span>
+        </div>
         <div class="field-group">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+              <label for="exactClaimInput" style="font-size: 11.5px; font-weight: 500; color: var(--ink-primary);">Exact Sentence or Claim to Review</label>
+              <button type="button" class="btn btn-xs" id="clearExactClaimBtn">Use Entire File</button>
+            </div>
+            <textarea id="exactClaimInput" rows="3" placeholder="Paste the exact sentence or claim you want to verify (leave blank to review the entire file)..."></textarea>
+          </div>
           <label class="toggle-row">
-            <span style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="restrictToPubsCheckbox" /><span>Restrict lookup only to checked publications below</span></span>
+            <span style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="restrictToPubsCheckbox" /><span>Restrict lookup only to checked books, publications &amp; links below</span></span>
           </label>
           <div id="publicationsList" style="display: flex; flex-direction: column; gap: 5px;"></div>
-          <div style="display: flex; gap: 6px; margin-top: 4px;">
-            <input type="text" id="newPubInput" placeholder="Optional: add publication or domain" />
-            <button type="button" class="btn" id="addPubBtn">Add</button>
+          <div style="display: flex; flex-direction: column; gap: 5px; margin-top: 4px; padding: 8px; background: var(--bg-canvas); border: 1px solid var(--border-hairline); border-radius: var(--radius-sm);">
+            <span style="font-size: 11px; font-weight: 600; color: var(--ink-secondary);">Book Name(s), Publication(s) or Link(s)</span>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="newBookNamesInput" placeholder="Book name(s) (comma-separated, e.g., The Philosophy of the Teachings of Islam)" />
+              <button type="button" class="btn" id="addBookToPubsBtn">Add Book(s)</button>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <input type="text" id="newPubInput" placeholder="Publication name, domain, or URL (e.g., archive.org or https://...)" />
+              <button type="button" class="btn" id="addPubBtn">Add Source</button>
+            </div>
           </div>
           <button type="button" class="btn btn-primary" id="verifyRefsBtn" style="margin-top: 4px; width: 100%;">Verify Facts &amp; Get References</button>
           <div id="factReportList" class="fact-report-list"></div>
@@ -305,11 +312,12 @@
   <div class="status-toast" id="toast"></div>
   <script>
     const DEFAULT_PUBLICATIONS = [
-      { id: 'alislam', name: 'Al-Islam.org', domain: 'alislam.org', enabled: true },
-      { id: 'alhakam', name: 'Al Hakam', domain: 'alhakam.org', enabled: true },
-      { id: 'alfazl', name: 'Al-Fazl', domain: 'alfazl.com', enabled: true },
-      { id: 'review', name: 'The Review of Religions', domain: 'reviewofreligions.org', enabled: true },
-      { id: 'arabic', name: 'Arabic Archives (Al-Islam / Al-Taqwa)', domain: 'alislam.org/arabic', enabled: true }
+      { id: 'book_search', name: 'Book Search (Books, Chapters & Footnotes)', domain: 'books', kind: 'book_search', books: [], enabled: true },
+      { id: 'alislam', name: 'Al-Islam.org', domain: 'alislam.org', kind: 'publication', enabled: true },
+      { id: 'alhakam', name: 'Al Hakam', domain: 'alhakam.org', kind: 'publication', enabled: true },
+      { id: 'alfazl', name: 'Al-Fazl', domain: 'alfazl.com', kind: 'publication', enabled: true },
+      { id: 'review', name: 'The Review of Religions', domain: 'reviewofreligions.org', kind: 'publication', enabled: true },
+      { id: 'arabic', name: 'Arabic Archives (Al-Islam / Al-Taqwa)', domain: 'alislam.org/arabic', kind: 'publication', enabled: true }
     ];
     let state = {
       lang: localStorage.getItem('qs_lang') || 'en',
@@ -721,10 +729,8 @@
       }
       return null;
 }
-    function runBritishSpellingAudit(customText = null, scopeLabel = null) {
-      const target = getActiveReviewTarget();
-      const activeScope = scopeLabel || target.scopeLabel;
-      const text = typeof customText === 'string' ? customText : target.text;
+    function runBritishSpellingAudit() {
+      const text = editor.value;
       if (!text.trim()) { showToast('Your document is empty.'); return; }
       const map = new Map(US_TO_UK_PAIRS);
       const wordRegex = /\b[A-Za-z]+\b/g;
@@ -739,7 +745,7 @@
             before: text.slice(start, end),
             after: text.slice(start, match.index) + ukWord + text.slice(match.index + raw.length, end),
             exactFind: raw, exactReplace: ukWord, charIndex: match.index,
-            reason: `British spelling: "${raw}" → "${ukWord}" [${activeScope}]`,
+            reason: `British spelling: "${raw}" → "${ukWord}"`,
             mode: 'exact', selected: true
           });
         }
@@ -823,7 +829,7 @@
         return { text: await res.text(), groundedLinks: [] };
       }
     }
-    function buildFallbackItemsForCommand(cmd, text, scopeLabel = 'Entire File') {
+    function buildFallbackItemsForCommand(cmd, text) {
       const lowerCmd = cmd.toLowerCase(); const items = []; const sentences = splitIntoSentences(text);
       if (/complete|finish|continue|ending|last sentence/.test(lowerCmd)) {
         const last = sentences[sentences.length - 1] || text.trim();
@@ -874,70 +880,37 @@
       }
       return parsedList;
     }
-    function getActiveReviewTarget() {
-      const pasted = document.getElementById('reviewTargetInput').value;
-      if (pasted.trim()) {
-        return { text: pasted, isEntireFile: false, scopeLabel: 'Specific Sentence / Pasted Passage' };
-      }
-      return { text: editor.value, isEntireFile: true, scopeLabel: 'Entire File' };
-    }
-    function updateReviewScopeIndicator() {
-      const target = getActiveReviewTarget();
-      const textEl = document.getElementById('reviewScopeText');
-      const badgeEl = document.getElementById('reviewScopeBadge');
-      if (target.isEntireFile) {
-        textEl.textContent = 'Reviewing: Entire File';
-        badgeEl.textContent = 'Entire File';
-      } else {
-        textEl.textContent = 'Reviewing: Specific Sentence (' + target.text.trim().length + ' chars)';
-        badgeEl.textContent = 'Specific Sentence';
-      }
-    }
-    document.getElementById('reviewTargetInput').addEventListener('input', updateReviewScopeIndicator);
-    document.getElementById('clearReviewTargetBtn').addEventListener('click', () => {
-      document.getElementById('reviewTargetInput').value = '';
-      updateReviewScopeIndicator();
-      showToast('Cleared specific sentence box — now reviewing Entire File.');
-    });
-    updateReviewScopeIndicator();
     async function runCommand() {
       const cmd = document.getElementById('commandInput').value.trim();
-      const target = getActiveReviewTarget();
-      const text = target.text;
+      const text = editor.value;
       if (!cmd) { showToast('Enter or speak an instruction first.'); return; }
-      if (!text.trim()) {
-        showToast(target.isEntireFile ? 'Paste or import a document in the center editor first.' : 'Enter text in the review box or leave it blank to review the entire file.');
-        return;
-      }
-      if (/british/i.test(cmd) && /spell/i.test(cmd)) {
-        runBritishSpellingAudit(text, target.scopeLabel);
-        return;
-      }
+      if (!text.trim()) { showToast('Paste or import a document in the center editor first.'); return; }
+      if (/british/i.test(cmd) && /spell/i.test(cmd)) { runBritishSpellingAudit(); return; }
       const explicitPair = parseExplicitReplacementCommand(cmd);
       if (explicitPair) {
-        const items = buildItemizedWordReplacements(text, explicitPair.fromVal, explicitPair.toVal, `${cmd} ("${explicitPair.fromVal}" → "${explicitPair.toVal}") [${target.scopeLabel}]`);
+        const items = buildItemizedWordReplacements(text, explicitPair.fromVal, explicitPair.toVal, `${cmd} ("${explicitPair.fromVal}" → "${explicitPair.toVal}")`);
         state.queue = items; renderQueue();
-        showToast(items.length ? `Listed ${items.length} itemized occurrence(s) in ${target.scopeLabel}.` : `No occurrences of "${explicitPair.fromVal}" found in ${target.scopeLabel}.`);
+        showToast(items.length ? `Listed ${items.length} itemized occurrence(s) for "${explicitPair.fromVal}" → "${explicitPair.toVal}".` : `No occurrences of "${explicitPair.fromVal}" found in the draft.`);
         return;
       }
       const runBtn = document.getElementById('runCommandBtn');
       runBtn.disabled = true; runBtn.textContent = 'Analyzing line by line...';
       const langLabel = getLangName(state.lang);
-      const systemPrompt = `You are a meticulous multilingual literary & thesis editor fluent in English, Urdu, Arabic, and Yoruba. Active manuscript language: ${langLabel}. Review scope: ${target.scopeLabel}. For ANY instruction given by the user, return ONLY a valid JSON array of individual, atomic proposed edits: [{"before":"exact sentence or phrase from text (or empty string if appending/completing)","after":"proposed replacement or completion in ${langLabel} unless another language is requested","reason":"concise explanation of this specific item including [${target.scopeLabel}]"}]. Rules: Break every change into small individual items (#1, #2, #3...) rather than returning whole paragraphs or full documents. If the user asks to complete an unfinished sentence, return an item with "before" as the unfinished sentence and "after" as the completed sentence in ${langLabel}, matching the author's tone. If the user asks to join fragments, return one item per joined pair. Omit sentences that require no change.` + (state.styleSample ? ' Author tone sample: ' + state.styleSample.slice(0, 1200) : '');
+      const systemPrompt = `You are a meticulous multilingual literary & thesis editor fluent in English, Urdu, Arabic, and Yoruba. Active manuscript language: ${langLabel}. For ANY instruction given by the user, return ONLY a valid JSON array of individual, atomic proposed edits: [{"before":"exact sentence or phrase from text (or empty string if appending/completing)","after":"proposed replacement or completion in ${langLabel} unless another language is requested","reason":"concise explanation of this specific item"}]. Rules: Break every change into small individual items (#1, #2, #3...) rather than returning whole paragraphs or full documents. If the user asks to complete an unfinished sentence, return an item with "before" as the unfinished sentence and "after" as the completed sentence in ${langLabel}, matching the author's tone. If the user asks to join fragments, return one item per joined pair. Omit sentences that require no change.` + (state.styleSample ? ' Author tone sample: ' + state.styleSample.slice(0, 1200) : '');
       try {
         const chunks = splitDocumentIntoChunks(text, 1800);
         let allItems = [];
         for (let i = 0; i < chunks.length; i++) {
-          runBtn.textContent = chunks.length > 1 ? `Checking part ${i + 1}/${chunks.length} (${target.scopeLabel})...` : `Building itemized list (${target.scopeLabel})...`;
-          const resObj = await callAI(systemPrompt, 'Review Scope: ' + target.scopeLabel + '\nInstruction: ' + cmd + '\n\nText segment:\n"""\n' + chunks[i] + '\n"""', false);
-          allItems.push(...parseAtomicEditsFromAI(resObj.text, chunks[i], `${cmd} [${target.scopeLabel}]`));
+          runBtn.textContent = chunks.length > 1 ? `Checking part ${i + 1}/${chunks.length}...` : 'Building itemized list...';
+          const resObj = await callAI(systemPrompt, 'Instruction: ' + cmd + '\n\nText segment:\n"""\n' + chunks[i] + '\n"""', false);
+          allItems.push(...parseAtomicEditsFromAI(resObj.text, chunks[i], cmd));
         }
-        if (!allItems.length) allItems = buildFallbackItemsForCommand(cmd, text, target.scopeLabel);
+        if (!allItems.length) allItems = buildFallbackItemsForCommand(cmd, text);
         state.queue = allItems; renderQueue();
-        showToast(allItems.length ? `Listed ${allItems.length} proposed change(s) from ${target.scopeLabel}.` : `No changes proposed for ${target.scopeLabel}.`);
+        showToast(allItems.length ? `Listed ${allItems.length} proposed change(s) in the approval queue.` : 'No changes proposed for this command.');
       } catch (err) {
-        const fallbackItems = buildFallbackItemsForCommand(cmd, text, target.scopeLabel);
-        if (fallbackItems.length) { state.queue = fallbackItems; renderQueue(); showToast(`AI offline—listed ${fallbackItems.length} local change(s) from ${target.scopeLabel}.`); }
+        const fallbackItems = buildFallbackItemsForCommand(cmd, text);
+        if (fallbackItems.length) { state.queue = fallbackItems; renderQueue(); showToast(`AI offline—listed ${fallbackItems.length} local proposed change(s).`); }
         else { showToast('Could not generate change list: ' + err.message); }
       } finally { runBtn.disabled = false; runBtn.textContent = 'Generate Itemized List'; }
     }
@@ -955,9 +928,74 @@
       } catch (err) { showToast('Source check error: ' + err.message); }
       finally { btn.disabled = false; btn.textContent = 'Search & Propose Source Additions'; }
     });
+    function getExactClaimText() {
+      const el = document.getElementById('exactClaimInput');
+      return el ? el.value.trim() : '';
+    }
+    function getActiveReviewScope() {
+      const exactClaim = getExactClaimText();
+      if (exactClaim) {
+        return { mode: 'exact_sentence', label: 'Exact Pasted Sentence / Claim', text: exactClaim };
+      }
+      return { mode: 'entire_file', label: 'Entire File', text: editor.value.trim() };
+    }
+    function syncReviewScopeBadge() {
+      const badge = document.getElementById('reviewScopeIndicator');
+      if (!badge) return;
+      const scope = getActiveReviewScope();
+      if (scope.mode === 'exact_sentence') {
+        badge.textContent = 'Scope: Exact Pasted Sentence';
+        badge.classList.add('exact-box');
+      } else {
+        badge.textContent = 'Scope: Entire File';
+        badge.classList.remove('exact-box');
+      }
+    }
+    function getConfiguredBookNames() {
+      const names = [];
+      state.publications.forEach(pub => {
+        if (!pub.enabled) return;
+        if (pub.kind === 'book_search' && Array.isArray(pub.books)) {
+          pub.books.forEach(b => { if (b && !names.includes(b)) names.push(b); });
+        } else if (pub.kind === 'book' && pub.name) {
+          if (!names.includes(pub.name)) names.push(pub.name);
+        }
+      });
+      const extraBookInput = document.getElementById('bookTitleInput');
+      if (extraBookInput && extraBookInput.value.trim()) {
+        extraBookInput.value.split(',').map(s => s.trim()).filter(Boolean).forEach(b => {
+          if (!names.includes(b)) names.push(b);
+        });
+      }
+      return names;
+    }
+    function getConfiguredDirectLinks() {
+      const links = [];
+      const ctxUrl = document.getElementById('contextUrlInput') ? document.getElementById('contextUrlInput').value.trim() : '';
+      if (ctxUrl) links.push(ctxUrl);
+      state.publications.forEach(pub => {
+        if (!pub.enabled) return;
+        if (pub.kind === 'link' && pub.url) links.push(pub.url);
+        else if (/^https?:\/\//i.test(pub.domain || '')) links.push(pub.domain.trim());
+      });
+      return [...new Set(links)];
+    }
     function buildSearchLinksForClaim(claimText, groundedLinks = []) {
       const cleanQuery = claimText.replace(/[^\w\s\u0600-\u06FF-]/g, ' ').trim().split(/\s+/).slice(0, 14).join(' ');
+      const bookNames = getConfiguredBookNames();
+      const directLinks = getConfiguredDirectLinks();
       const links = [...groundedLinks];
+      directLinks.forEach((rawUrl, i) => {
+        const normalizedUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+        links.push({ label: `Provided Link #${i + 1}`, url: normalizedUrl, grounded: true });
+      });
+      if (bookNames.length) {
+        bookNames.forEach(bookName => {
+          const bookQuery = `${cleanQuery} "${bookName}"`;
+          links.push({ label: `Book: ${bookName.slice(0, 24)}`, url: `https://www.google.com/search?tbm=bks&q=${encodeURIComponent(bookQuery)}` });
+          links.push({ label: `Archive Book: ${bookName.slice(0, 20)}`, url: `https://archive.org/search?query=${encodeURIComponent(bookQuery)}` });
+        });
+      }
       if (!state.restrictToPubs) {
         links.push(
           { label: 'Google Web', url: `https://www.google.com/search?q=${encodeURIComponent(cleanQuery)}` },
@@ -966,12 +1004,12 @@
           { label: 'Wikipedia', url: `https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(cleanQuery)}` }
         );
       }
-      const enabledPubs = state.publications.filter(p => p.enabled);
-      enabledPubs.slice(0, state.restrictToPubs ? 5 : 2).forEach(pub => {
-        const dom = pub.domain.split(',')[0].trim();
-        if (dom) {
-          links.push({ label: pub.name, url: `https://www.google.com/search?q=${encodeURIComponent('site:' + dom + ' ' + cleanQuery)}` });
-        }
+      const enabledPubs = state.publications.filter(p => p.enabled && p.kind !== 'book_search');
+      enabledPubs.slice(0, state.restrictToPubs ? 6 : 2).forEach(pub => {
+        const dom = (pub.domain || '').split(',')[0].trim();
+        if (/^https?:\/\//i.test(dom)) links.push({ label: pub.name, url: dom });
+        else if (dom && dom !== 'books') links.push({ label: pub.name, url: `https://www.google.com/search?q=${encodeURIComponent('site:' + dom + ' ' + cleanQuery)}` });
+        else if (pub.name) links.push({ label: pub.name, url: `https://www.google.com/search?q=${encodeURIComponent('"' + pub.name + '" ' + cleanQuery)}` });
       });
       return links;
     }
@@ -984,9 +1022,10 @@
         card.className = 'fact-card';
         const vClass = entry.verdict === 'confirmed' ? 'verdict-confirmed' : (entry.verdict === 'partial' ? 'verdict-partial' : 'verdict-unverified');
         const vLabel = entry.verdict === 'confirmed' ? 'Confirmed Fact' : (entry.verdict === 'partial' ? 'Needs Context / Check' : 'Unverified / Claim');
+        const scopeLabel = entry.scopeLabel || 'Entire File';
         const linksHtml = (entry.links || []).map(l => `<a class="source-link ${l.grounded ? 'grounded' : ''}" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">${l.grounded ? '★ ' : ''}${escapeHtml(l.label)} ↗</a>`).join('');
         const citeBtnHtml = entry.suggestedCitation ? `<button type="button" class="btn btn-xs" data-cite-idx="${idx}">Queue Citation in Draft</button>` : '';
-        card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;"><strong style="font-size:11.5px;">Statement #${idx + 1}</strong><span class="verdict-pill ${vClass}">${vLabel}</span></div><div style="font-family:var(--font-serif);font-size:13px;color:var(--ink-primary);">“${escapeHtml(entry.claim)}”</div><div style="font-size:11.5px;color:var(--ink-secondary);line-height:1.45;">${escapeHtml(entry.assessment)}</div>${entry.referenceNote ? `<div style="font-size:11px;color:var(--ink-muted);"><strong>Reference / Footnote Clue:</strong> ${escapeHtml(entry.referenceNote)}</div>` : ''}<div class="source-link-row">${linksHtml}</div>${citeBtnHtml ? `<div style="margin-top:4px;">${citeBtnHtml}</div>` : ''}`;
+        card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap;"><strong style="font-size:11.5px;">Statement #${idx + 1} · <span style="color:var(--ink-secondary);font-weight:500;">${escapeHtml(scopeLabel)}</span></strong><span class="verdict-pill ${vClass}">${vLabel}</span></div><div style="font-family:var(--font-serif);font-size:13px;color:var(--ink-primary);">“${escapeHtml(entry.claim)}”</div><div style="font-size:11.5px;color:var(--ink-secondary);line-height:1.45;">${escapeHtml(entry.assessment)}</div>${entry.referenceNote ? `<div style="font-size:11px;color:var(--ink-muted);"><strong>Reference / Footnote Clue:</strong> ${escapeHtml(entry.referenceNote)}</div>` : ''}<div class="source-link-row">${linksHtml}</div>${citeBtnHtml ? `<div style="margin-top:4px;">${citeBtnHtml}</div>` : ''}`;
         const citeBtn = card.querySelector('[data-cite-idx]');
         if (citeBtn) {
           citeBtn.addEventListener('click', () => {
@@ -1000,29 +1039,48 @@
         container.appendChild(card);
       });
     }
-    function buildFallbackFactReport(text) {
-      const sents = splitIntoSentences(text).slice(0, 8);
+    function buildFallbackFactReport(text, scopeLabel = 'Entire File') {
+      const sents = scopeLabel === 'Exact Pasted Sentence / Claim' ? [text] : splitIntoSentences(text).slice(0, 8);
       return sents.map(s => ({
         claim: s,
+        scopeLabel,
         verdict: 'partial',
-        assessment: 'Live AI check was unavailable or returned plain text—use the open-web, book, and archive search links below to verify the exact wording, quote, or footnote.',
-        referenceNote: 'Search across Google Web, Google Books, Internet Archive, or your checked publications below.',
+        assessment: `Reviewed under scope: ${scopeLabel}. Live AI check was unavailable or returned plain text—use the book, link, publication, and open-web search links below to check where this claim appears.`,
+        referenceNote: 'Check the Book Search, provided links, listed publications, or open-web/archive search links below.',
         suggestedCitation: `${s} [Source verification pending]`,
         links: buildSearchLinksForClaim(s, [])
       }));
     }
+    document.getElementById('exactClaimInput').addEventListener('input', syncReviewScopeBadge);
+    document.getElementById('clearExactClaimBtn').addEventListener('click', () => {
+      document.getElementById('exactClaimInput').value = '';
+      syncReviewScopeBadge();
+      showToast('Review scope set to Entire File.');
+    });
+    syncReviewScopeBadge();
     document.getElementById('verifyRefsBtn').addEventListener('click', async () => {
-      const target = getActiveReviewTarget();
-      const text = target.text.trim();
-      if (!text) { showToast('Write or paste a fact or sentence in the review box or editor first.'); return; }
+      const scope = getActiveReviewScope();
+      if (!scope.text) {
+        showToast('Paste a sentence/claim in the review box or write/import text in the editor first.');
+        return;
+      }
       const btn = document.getElementById('verifyRefsBtn');
-      btn.disabled = true; btn.textContent = `Searching (${target.scopeLabel})...`;
+      btn.disabled = true; btn.textContent = 'Checking books, links, publications & web...';
+      const bookNames = getConfiguredBookNames();
+      const directLinks = getConfiguredDirectLinks();
+      const enabledPubs = state.publications.filter(p => p.enabled && p.kind !== 'book_search');
+      const sourcesSummary = [];
+      if (bookNames.length) sourcesSummary.push(`Specific books to check for the claim: ${bookNames.join(', ')}`);
+      if (directLinks.length) sourcesSummary.push(`Specific links/URLs given: ${directLinks.join(', ')}`);
+      if (enabledPubs.length) sourcesSummary.push(`Enabled publications/sources: ${enabledPubs.map(p => `${p.name} (${p.domain})`).join(', ')}`);
+      if (!state.restrictToPubs) sourcesSummary.push('Also check the entire open web, books, archives, and scholarly references.');
       const scopeInstruction = state.restrictToPubs
-        ? ('Limit source recommendations primarily to these enabled publications: ' + state.publications.filter(p => p.enabled).map(p => `${p.name} (${p.domain})`).join(', '))
-        : 'Do NOT limit your search to any fixed list of publications. Search across the entire internet—books, chapters, historical footnotes, archival records, articles, encyclopedias, and primary or secondary sources wherever the reference exists.';
-      const systemPrompt = 'You are a thorough research librarian and fact-checker. Inspect each factual claim, quote, or statement in the user text. ' + scopeInstruction + ' Return ONLY a JSON array of objects: [{"claim":"exact sentence or claim","verdict":"confirmed" | "partial" | "unverified","assessment":"clear explanation of whether this is a confirmed fact, partially accurate, or needs verification","referenceNote":"specific book, author, chapter, footnote, article, or web/archive source where this can be found","suggestedCitation":"the sentence with a helpful inline reference or footnote placeholder"}].';
+        ? ('Restrict your source check primarily to the enabled books, links, and publications listed: ' + sourcesSummary.join(' | '))
+        : ('Check across ' + sourcesSummary.join(' | '));
+      const systemPrompt = `You are a thorough research librarian and fact-checker. Review scope is "${scope.label}". Inspect the claim(s) and state clearly whether each claim appears in or is supported by the specified book(s), link(s), publication(s), or other places on the open web. ` + scopeInstruction + ` Return ONLY a JSON array of objects: [{"claim":"exact sentence or claim","verdict":"confirmed" | "partial" | "unverified","assessment":"clear explanation of whether this appears in or aligns with the specified books, links, publications, or other web sources","referenceNote":"specific book name, chapter, footnote, link, publication, or web place where found or recommended","suggestedCitation":"the sentence with a helpful inline reference or footnote placeholder"}].`;
       try {
-        const resObj = await callAI(systemPrompt, 'Verify facts and find references across the web/books/archives for this text:\n"""\n' + text.slice(0, 3500) + '\n"""', true);
+        const payloadText = scope.mode === 'exact_sentence' ? scope.text : scope.text.slice(0, 3500);
+        const resObj = await callAI(systemPrompt, `Review Scope: ${scope.label}\nSources to check: ${sourcesSummary.join(' ; ')}\n\nText to verify:\n"""\n` + payloadText + '\n"""', true);
         const cleaned = (resObj.text || '').replace(/```json|```/gi, '').trim();
         const match = cleaned.match(/\[[\s\S]*\]/);
         let items = [];
@@ -1031,6 +1089,7 @@
           if (Array.isArray(parsed)) {
             items = parsed.filter(x => x && x.claim).map(x => ({
               claim: String(x.claim).trim(),
+              scopeLabel: scope.label,
               verdict: (['confirmed','partial','unverified'].includes(String(x.verdict).toLowerCase()) ? String(x.verdict).toLowerCase() : 'partial'),
               assessment: String(x.assessment || 'Reviewed for factual accuracy.').trim(),
               referenceNote: String(x.referenceNote || '').trim(),
@@ -1040,23 +1099,24 @@
           }
         }
         if (!items.length) {
-          const sents = splitIntoSentences(text).slice(0, 6);
+          const sents = scope.mode === 'exact_sentence' ? [scope.text] : splitIntoSentences(scope.text).slice(0, 6);
           items = sents.map(s => ({
             claim: s,
+            scopeLabel: scope.label,
             verdict: 'partial',
-            assessment: cleaned.slice(0, 260) || 'Use direct search, book, and archive links below to confirm exact wording.',
-            referenceNote: 'See direct web, book, and archive links below.',
+            assessment: cleaned.slice(0, 260) || `Reviewed (${scope.label}). Use the book, link, publication, and open-web search links below to confirm exact matches.`,
+            referenceNote: 'See book, link, publication, and open-web search links below.',
             suggestedCitation: '',
             links: buildSearchLinksForClaim(s, resObj.groundedLinks || [])
           }));
         }
         state.factReport = items;
         renderFactReport();
-        showToast(`Verified ${items.length} statement(s) with open-web & book reference links.`);
+        showToast(`Verified ${items.length} item(s) under "${scope.label}".`);
       } catch (err) {
-        state.factReport = buildFallbackFactReport(text);
+        state.factReport = buildFallbackFactReport(scope.text, scope.label);
         renderFactReport();
-        showToast('AI unreachable—generated open-web, book & archive search links.');
+        showToast(`AI unreachable—generated book, link & web search links for ${scope.label}.`);
       } finally {
         btn.disabled = false; btn.textContent = 'Verify Facts & Get References';
       }
@@ -1218,21 +1278,84 @@
       showToast(`Queued ${addedItems.length} occurrence(s) in itemized list.`);
     });
     function renderPublications() {
-      const container = document.getElementById('publicationsList'); container.innerHTML = '';
+      const container = document.getElementById('publicationsList');
+      container.innerHTML = '';
       state.publications.forEach((pub, idx) => {
-        const row = document.createElement('div'); row.className = 'pub-item';
-        row.innerHTML = `<label style="display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" ${pub.enabled ? 'checked' : ''} /><span><strong>${escapeHtml(pub.name)}</strong> <span style="color:var(--ink-muted);">(${escapeHtml(pub.domain)})</span></span></label>${idx >= 5 ? '<button type="button" class="btn btn-xs">×</button>' : ''}`;
-        row.querySelector('input').addEventListener('change', (e) => { pub.enabled = e.target.checked; saveLocal(); });
-        const delBtn = row.querySelector('button');
-        if (delBtn) delBtn.addEventListener('click', () => { state.publications.splice(idx, 1); saveLocal(); renderPublications(); });
+        const row = document.createElement('div');
+        row.className = 'pub-item';
+        row.style.flexDirection = 'column';
+        row.style.alignItems = 'stretch';
+        row.style.gap = '6px';
+        const isBookSearch = pub.kind === 'book_search';
+        const booksList = Array.isArray(pub.books) ? pub.books : [];
+        const booksChipsHtml = isBookSearch
+          ? `<div style="display:flex;flex-wrap:wrap;gap:5px;padding-left:20px;">${
+              booksList.length
+                ? booksList.map((bName, bIdx) => `<span class="book-tag-chip"><span>${escapeHtml(bName)}</span><button type="button" class="btn btn-xs" style="height:18px;padding:0 5px;font-size:10px;" data-del-book="${bIdx}">×</button></span>`).join('')
+                : `<span style="font-size:11px;color:var(--ink-muted);">No specific book names added yet—searches all books &amp; archives.</span>`
+            }</div>`
+          : '';
+        const canDelete = idx >= DEFAULT_PUBLICATIONS.length;
+        row.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;"><label style="display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" ${pub.enabled ? 'checked' : ''} /><span><strong>${escapeHtml(pub.name)}</strong>${!isBookSearch && pub.domain ? ` <span style="color:var(--ink-muted);">(${escapeHtml(pub.domain)})</span>` : ''}</span></label>${canDelete ? '<button type="button" class="btn btn-xs" data-del-pub="1">×</button>' : ''}</div>${booksChipsHtml}`;
+        row.querySelector('input[type="checkbox"]').addEventListener('change', (e) => {
+          pub.enabled = e.target.checked;
+          saveLocal();
+        });
+        const delPubBtn = row.querySelector('[data-del-pub]');
+        if (delPubBtn) {
+          delPubBtn.addEventListener('click', () => {
+            state.publications.splice(idx, 1);
+            saveLocal();
+            renderPublications();
+          });
+        }
+        row.querySelectorAll('[data-del-book]').forEach(btnEl => {
+          btnEl.addEventListener('click', () => {
+            const bIdx = Number(btnEl.getAttribute('data-del-book'));
+            pub.books.splice(bIdx, 1);
+            saveLocal();
+            renderPublications();
+          });
+        });
         container.appendChild(row);
       });
     }
     renderPublications();
+    document.getElementById('addBookToPubsBtn').addEventListener('click', () => {
+      const raw = document.getElementById('newBookNamesInput').value.trim();
+      if (!raw) { showToast('Enter one or more book names first.'); return; }
+      const bookNames = raw.split(',').map(s => s.trim()).filter(Boolean);
+      let bookSearchEntry = state.publications.find(p => p.kind === 'book_search');
+      if (!bookSearchEntry) {
+        bookSearchEntry = { id: 'book_search', name: 'Book Search (Books, Chapters & Footnotes)', domain: 'books', kind: 'book_search', books: [], enabled: true };
+        state.publications.unshift(bookSearchEntry);
+      }
+      if (!Array.isArray(bookSearchEntry.books)) bookSearchEntry.books = [];
+      bookNames.forEach(bn => {
+        if (!bookSearchEntry.books.includes(bn)) bookSearchEntry.books.push(bn);
+      });
+      bookSearchEntry.enabled = true;
+      document.getElementById('newBookNamesInput').value = '';
+      saveLocal();
+      renderPublications();
+      showToast(`Added ${bookNames.length} book(s) to Book Search.`);
+    });
     document.getElementById('addPubBtn').addEventListener('click', () => {
-      const val = document.getElementById('newPubInput').value.trim(); if (!val) return;
-      state.publications.push({ id: 'pub_' + Date.now(), name: val, domain: val, enabled: true });
-      document.getElementById('newPubInput').value = ''; saveLocal(); renderPublications(); showToast(`Added "${val}" to publications.`);
+      const val = document.getElementById('newPubInput').value.trim();
+      if (!val) return;
+      const isUrl = /^https?:\/\//i.test(val);
+      state.publications.push({
+        id: 'pub_' + Date.now(),
+        name: isUrl ? 'Custom Link' : val,
+        domain: val,
+        url: isUrl ? val : '',
+        kind: isUrl ? 'link' : 'publication',
+        enabled: true
+      });
+      document.getElementById('newPubInput').value = '';
+      saveLocal();
+      renderPublications();
+      showToast(`Added "${val}" to sources.`);
     });
     document.getElementById('saveSampleBtn').addEventListener('click', () => { state.styleSample = document.getElementById('styleSampleInput').value; saveLocal(); showToast('Tone & writing sample saved.'); });
     document.getElementById('settingsBtn').addEventListener('click', () => document.getElementById('settingsModal').classList.add('open'));
