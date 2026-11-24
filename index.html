@@ -23,20 +23,20 @@
       --font-urdu: 'Noto Nastaliq Urdu', 'Amiri', serif;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background-color: var(--bg-canvas); color: var(--ink-primary); font-family: var(--font-sans); font-size: 13.5px; line-height: 1.5; height: 100vh; overflow: hidden; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; }
-    header { height: 54px; background: var(--bg-surface); border-bottom: 1px solid var(--border-hairline); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; z-index: 20; }
+    body { background-color: var(--bg-canvas); color: var(--ink-primary); font-family: var(--font-sans); font-size: 13.5px; line-height: 1.5; min-height: 100vh; display: flex; flex-direction: column; -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    header { min-height: 54px; background: var(--bg-surface); border-bottom: 1px solid var(--border-hairline); padding: 8px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; flex-shrink: 0; z-index: 20; }
     .brand { display: flex; align-items: baseline; gap: 10px; }
     .brand-title { font-family: var(--font-display); font-size: 18px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink-primary); }
     .brand-sub { font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-muted); }
-    .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); background: var(--bg-surface); color: var(--ink-primary); font-family: var(--font-sans); font-size: 12.5px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
+    .header-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 32px; padding: 0 11px; border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); background: var(--bg-surface); color: var(--ink-primary); font-family: var(--font-sans); font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; white-space: nowrap; }
     .btn:hover:not(:disabled) { background: var(--bg-subtle); border-color: var(--border-strong); }
     .btn:disabled { opacity: 0.42; cursor: not-allowed; }
     .btn-primary { background: var(--accent-charcoal); color: #FFFFFF; border-color: var(--accent-charcoal); }
     .btn-primary:hover:not(:disabled) { background: #333330; border-color: #333330; }
     .btn-xs { height: 26px; padding: 0 9px; font-size: 11.5px; }
-    select.minimal-select { height: 32px; padding: 0 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); background: var(--bg-surface); color: var(--ink-primary); font-family: var(--font-sans); font-size: 12.5px; cursor: pointer; outline: none; }
-    .workspace { display: grid; grid-template-columns: 315px 1fr 405px; flex: 1; overflow: hidden; }
+    select.minimal-select { height: 32px; padding: 0 9px; border-radius: var(--radius-sm); border: 1px solid var(--border-hairline); background: var(--bg-surface); color: var(--ink-primary); font-family: var(--font-sans); font-size: 12px; cursor: pointer; outline: none; }
+    .workspace { display: grid; grid-template-columns: 305px 1fr 395px; flex: 1; min-height: calc(100vh - 54px); }
     .panel { background: var(--bg-surface); border-right: 1px solid var(--border-hairline); display: flex; flex-direction: column; overflow-y: auto; padding: 18px; gap: 20px; }
     .panel-right { border-right: none; border-left: 1px solid var(--border-hairline); }
     .section-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-muted); margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
@@ -44,9 +44,11 @@
     textarea, input[type="text"], input[type="password"] { width: 100%; border: 1px solid var(--border-hairline); border-radius: var(--radius-sm); background: var(--bg-canvas); color: var(--ink-primary); font-family: var(--font-sans); font-size: 12.5px; padding: 9px 11px; outline: none; transition: border-color 0.15s ease, background 0.15s ease; }
     textarea:focus, input[type="text"]:focus, input[type="password"]:focus { border-color: var(--ink-primary); background: var(--bg-surface); }
     .divider { height: 1px; background: var(--border-hairline); margin: 2px 0; }
-    .sheet-container { background: var(--bg-canvas); overflow-y: auto; padding: 28px 32px 64px; display: flex; flex-direction: column; align-items: center; }
+    .sheet-container { background: var(--bg-canvas); overflow-y: auto; padding: 24px 28px 64px; display: flex; flex-direction: column; align-items: center; }
     .sheet-meta-bar { width: 100%; max-width: 780px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; font-size: 12px; color: var(--ink-muted); gap: 10px; flex-wrap: wrap; }
-    .paper-sheet { width: 100%; max-width: 780px; min-height: calc(100vh - 150px); background: var(--bg-surface); border: 1px solid var(--border-hairline); box-shadow: var(--shadow-sheet); border-radius: 2px; padding: 48px 56px; display: flex; flex-direction: column; gap: 16px; }
+    .sheet-file-controls { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .paper-sheet { width: 100%; max-width: 780px; min-height: calc(100vh - 160px); background: var(--bg-surface); border: 1px solid var(--border-hairline); box-shadow: var(--shadow-sheet); border-radius: 2px; padding: 48px 56px; display: flex; flex-direction: column; gap: 16px; transition: border-color 0.15s ease, background 0.15s ease; }
+    .paper-sheet.drag-over { border-color: var(--ink-primary); background: #FCFBF8; }
     .doc-title-input { border: none !important; background: transparent !important; font-family: var(--font-display); font-size: 26px; font-weight: 600; color: var(--ink-primary); padding: 0 !important; letter-spacing: -0.015em; }
     .editor-area { flex: 1; width: 100%; min-height: 520px; border: none !important; background: transparent !important; resize: none; font-family: var(--font-serif); font-size: 18px; line-height: 1.85; color: var(--ink-primary); padding: 0 !important; }
     .editor-area.lang-ar { font-family: var(--font-arabic); font-size: 22px; line-height: 2.0; }
@@ -90,7 +92,7 @@
     .modal-box { background: var(--bg-surface); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); width: 100%; max-width: 500px; padding: 22px; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; gap: 14px; }
     .status-toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink-primary); color: #FFFFFF; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 12.5px; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; z-index: 60; }
     .status-toast.show { opacity: 1; }
-    @media (max-width: 1120px) { body { height: auto; overflow: auto; } .workspace { grid-template-columns: 1fr; overflow: visible; } .panel { border-right: none; border-bottom: 1px solid var(--border-hairline); } .panel-right { border-left: none; } .paper-sheet { padding: 28px 22px; min-height: 420px; } }
+    @media (max-width: 1180px) { .workspace { grid-template-columns: 1fr; } .panel { border-right: none; border-bottom: 1px solid var(--border-hairline); } .panel-right { border-left: none; } .paper-sheet { padding: 28px 22px; min-height: 420px; } }
   </style>
 </head>
 <body>
@@ -107,18 +109,18 @@
         <option value="ar">العربية — Arabic (RTL)</option>
         <option value="yo">Yorùbá (LTR)</option>
       </select>
-      <input type="file" id="fileInput" accept=".docx,.txt,.md" hidden />
-      <button class="btn" id="importBtn">Import File</button>
+      <input type="file" id="fileInput" accept=".docx,.txt,.md,.rtf,.csv,.html,.htm,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" style="display:none;" />
+      <button type="button" class="btn" id="importBtn">Import File</button>
       <select id="exportFormat" class="minimal-select" title="Export Format">
         <option value="docx">.docx (Word)</option>
         <option value="md">.md (Markdown)</option>
         <option value="txt">.txt (Plain Text)</option>
       </select>
-      <button class="btn" id="exportBtn">Export File</button>
-      <button class="btn" id="undoBtn" disabled title="Undo Last Applied Command (Ctrl+Z)">Undo (0)</button>
-      <button class="btn" id="redoBtn" disabled title="Redo (Ctrl+Y)">Redo</button>
-      <button class="btn" id="historyBtn">History</button>
-      <button class="btn" id="settingsBtn">Gemini API Key</button>
+      <button type="button" class="btn" id="exportBtn">Export File</button>
+      <button type="button" class="btn" id="undoBtn" disabled title="Undo Last Applied Command (Ctrl+Z)">Undo (0)</button>
+      <button type="button" class="btn" id="redoBtn" disabled title="Redo (Ctrl+Y)">Redo</button>
+      <button type="button" class="btn" id="historyBtn">History</button>
+      <button type="button" class="btn" id="settingsBtn">Gemini API Key</button>
     </div>
   </header>
   <main class="workspace">
@@ -126,7 +128,7 @@
       <div>
         <div class="section-label">
           <span>1. Instruction &amp; Voice Hub</span>
-          <button class="btn btn-xs mic-btn" id="micBtn">Speak Command</button>
+          <button type="button" class="btn btn-xs mic-btn" id="micBtn">Speak Command</button>
         </div>
         <div class="field-group">
           <textarea id="commandInput" rows="4" placeholder="Give any instruction in English, Urdu, Arabic, or Yoruba (e.g., 'Complete my unfinished last sentence in my tone', 'Check all English spellings to British', 'Verify all quotes and footnotes')..."></textarea>
@@ -136,14 +138,14 @@
             <span class="chip" data-cmd="Join fragmented sentences smoothly while keeping my voice">Join Fragments</span>
             <span class="chip" data-cmd="Check all English spellings to British English">British Spellings</span>
           </div>
-          <button class="btn btn-primary" id="runCommandBtn" style="margin-top: 4px; width: 100%;">Generate Itemized List</button>
+          <button type="button" class="btn btn-primary" id="runCommandBtn" style="margin-top: 4px; width: 100%;">Generate Itemized List</button>
         </div>
       </div>
       <div class="divider"></div>
       <div>
         <div class="section-label">
           <span>2. Tone &amp; Voice Reference</span>
-          <button class="btn btn-xs" id="saveSampleBtn">Save Sample</button>
+          <button type="button" class="btn btn-xs" id="saveSampleBtn">Save Sample</button>
         </div>
         <div class="field-group">
           <textarea id="styleSampleInput" rows="4" placeholder="Paste a paragraph in English, Urdu, Arabic, or Yoruba so sentence completions match your exact cadence and register..."></textarea>
@@ -156,18 +158,21 @@
         <div class="field-group">
           <input type="text" id="bookTitleInput" placeholder="Book title, author, quote, or footnote clue" />
           <input type="text" id="contextUrlInput" placeholder="Article URL, archive link, or YouTube URL (optional)" />
-          <button class="btn" id="draftFromSourceBtn">Search &amp; Propose Source Additions</button>
+          <button type="button" class="btn" id="draftFromSourceBtn">Search &amp; Propose Source Additions</button>
         </div>
       </div>
     </aside>
     <section class="sheet-container">
       <div class="sheet-meta-bar">
-        <span id="fileIndicator">Untitled Manuscript</span>
+        <div class="sheet-file-controls">
+          <span id="fileIndicator">Untitled Manuscript</span>
+          <button type="button" class="btn btn-xs" id="sheetImportBtn">Import .docx / .txt / .md</button>
+        </div>
         <span id="wordCountIndicator">0 words · 0 characters</span>
       </div>
       <article class="paper-sheet" id="paperSheet">
         <input type="text" id="docTitle" class="doc-title-input" placeholder="Column or Thesis Chapter Title..." />
-        <textarea id="editor" class="editor-area" placeholder="Write or paste facts, quotes, or unfinished sentences in English, Urdu, Arabic, or Yoruba. Click Verify Facts & Get References on the right to search across the open web, books, archives, and footnotes..."></textarea>
+        <textarea id="editor" class="editor-area" placeholder="Write or paste facts, quotes, or unfinished sentences in English, Urdu, Arabic, or Yoruba, or click Import .docx / .txt / .md (or drag a file here). Click Verify Facts & Get References on the right to search across the open web, books, archives, and footnotes..."></textarea>
       </article>
     </section>
     <aside class="panel panel-right">
@@ -178,17 +183,17 @@
         </div>
         <div class="queue-header-bar" style="margin-bottom: 8px;">
           <div style="display: flex; gap: 4px;">
-            <button class="btn btn-xs" id="selectAllBtn">Select All</button>
-            <button class="btn btn-xs" id="deselectAllBtn">Deselect All</button>
+            <button type="button" class="btn btn-xs" id="selectAllBtn">Select All</button>
+            <button type="button" class="btn btn-xs" id="deselectAllBtn">Deselect All</button>
           </div>
-          <button class="btn btn-xs" id="clearQueueBtn">Clear</button>
+          <button type="button" class="btn btn-xs" id="clearQueueBtn">Clear</button>
         </div>
         <div class="queue-list" id="queueList">
           <div style="padding: 18px 12px; text-align: center; color: var(--ink-muted); font-size: 12px; border: 1px dashed var(--border-hairline); border-radius: var(--radius-sm);">
             No pending changes. Run any command—every proposed change is broken down into individual items so you can toggle each item on or off before applying.
           </div>
         </div>
-        <button class="btn btn-primary" id="applySelectedBtn" disabled style="margin-top: 10px; width: 100%;">
+        <button type="button" class="btn btn-primary" id="applySelectedBtn" disabled style="margin-top: 10px; width: 100%;">
           Okay, Yes — Apply Selected Changes (0)
         </button>
       </div>
@@ -196,16 +201,16 @@
       <div>
         <div class="section-label">
           <span>Word &amp; Spelling Audit</span>
-          <button class="btn btn-xs" id="britishAuditBtn">Audit British Spelling</button>
+          <button type="button" class="btn btn-xs" id="britishAuditBtn">Audit British Spelling</button>
         </div>
         <div class="field-group">
           <div style="display: flex; gap: 6px;">
             <input type="text" id="searchWordInput" placeholder="Find word (e.g., organization)" />
-            <button class="btn" id="findWordBtn">Find</button>
+            <button type="button" class="btn" id="findWordBtn">Find</button>
           </div>
           <div style="display: flex; gap: 6px;">
             <input type="text" id="replaceWordInput" placeholder="Replacement (e.g., organisation)" />
-            <button class="btn" id="queueAllMatchesBtn">Queue All</button>
+            <button type="button" class="btn" id="queueAllMatchesBtn">Queue All</button>
           </div>
           <div id="wordMatchesList" style="display: flex; flex-direction: column; gap: 6px; max-height: 140px; overflow-y: auto;"></div>
         </div>
@@ -220,9 +225,9 @@
           <div id="publicationsList" style="display: flex; flex-direction: column; gap: 5px;"></div>
           <div style="display: flex; gap: 6px; margin-top: 4px;">
             <input type="text" id="newPubInput" placeholder="Optional: add publication or domain" />
-            <button class="btn" id="addPubBtn">Add</button>
+            <button type="button" class="btn" id="addPubBtn">Add</button>
           </div>
-          <button class="btn btn-primary" id="verifyRefsBtn" style="margin-top: 4px; width: 100%;">Verify Facts &amp; Get References</button>
+          <button type="button" class="btn btn-primary" id="verifyRefsBtn" style="margin-top: 4px; width: 100%;">Verify Facts &amp; Get References</button>
           <div id="factReportList" class="fact-report-list"></div>
         </div>
       </div>
@@ -232,7 +237,7 @@
     <div class="modal-box">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <strong style="font-family: var(--font-display); font-size: 17px;">Command &amp; Snapshot History</strong>
-        <button class="btn btn-xs" id="closeHistoryBtn">Close</button>
+        <button type="button" class="btn btn-xs" id="closeHistoryBtn">Close</button>
       </div>
       <p style="font-size: 12px; color: var(--ink-secondary);">Restore your manuscript to any earlier point before an applied batch of changes.</p>
       <div id="historyList" style="display: flex; flex-direction: column; gap: 8px; max-height: 280px; overflow-y: auto;"></div>
@@ -242,7 +247,7 @@
     <div class="modal-box">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <strong style="font-family: var(--font-display); font-size: 17px;">Google Gemini API Key &amp; Grounding</strong>
-        <button class="btn btn-xs" id="closeSettingsBtn">Close</button>
+        <button type="button" class="btn btn-xs" id="closeSettingsBtn">Close</button>
       </div>
       <div class="field-group">
         <label style="font-size: 12px; font-weight: 500;">Google AI Studio Gemini API Key</label>
@@ -253,7 +258,7 @@
         <span style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="geminiGroundingToggle" checked /><span>Enable Gemini Google Search Grounding (<code>google_search</code>)</span></span>
       </label>
       <div style="display: flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
+        <button type="button" class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
       </div>
     </div>
   </div>
@@ -277,6 +282,8 @@
     };
     const editor = document.getElementById('editor');
     const docTitle = document.getElementById('docTitle');
+    const fileInput = document.getElementById('fileInput');
+    const paperSheet = document.getElementById('paperSheet');
     function showToast(msg) {
       const t = document.getElementById('toast');
       t.textContent = msg; t.classList.add('show');
@@ -377,7 +384,7 @@
       } else {
         [...state.undoStack].reverse().forEach((snap) => {
           const row = document.createElement('div'); row.className = 'pub-item';
-          row.innerHTML = `<div><div style="font-weight:500;">${escapeHtml(snap.label)}</div><div style="font-size:11px;color:var(--ink-muted);">${snap.timestamp} · ${snap.text.split(/\s+/).filter(Boolean).length} words</div></div><button class="btn btn-xs">Restore</button>`;
+          row.innerHTML = `<div><div style="font-weight:500;">${escapeHtml(snap.label)}</div><div style="font-size:11px;color:var(--ink-muted);">${snap.timestamp} · ${snap.text.split(/\s+/).filter(Boolean).length} words</div></div><button type="button" class="btn btn-xs">Restore</button>`;
           row.querySelector('button').addEventListener('click', () => {
             pushSnapshot('Before history restore'); editor.value = snap.text; docTitle.value = snap.title;
             updateCounts(); document.getElementById('historyModal').classList.remove('open'); showToast(`Restored snapshot from ${snap.timestamp}`);
@@ -388,19 +395,67 @@
       document.getElementById('historyModal').classList.add('open');
     });
     document.getElementById('closeHistoryBtn').addEventListener('click', () => document.getElementById('historyModal').classList.remove('open'));
-    document.getElementById('importBtn').addEventListener('click', () => document.getElementById('fileInput').click());
-    document.getElementById('fileInput').addEventListener('change', async (e) => {
-      const file = e.target.files[0]; if (!file) return;
-      pushSnapshot(`Before importing ${file.name}`);
-      const ext = file.name.split('.').pop().toLowerCase();
+    function openFilePicker() {
       try {
-        if (ext === 'docx') { const buf = await file.arrayBuffer(); const res = await mammoth.extractRawText({ arrayBuffer: buf }); editor.value = res.value; }
-        else { editor.value = await file.text(); }
-        docTitle.value = file.name.replace(/\.[^/.]+$/, '');
+        if (typeof fileInput.showPicker === 'function') {
+          fileInput.showPicker();
+          return;
+        }
+      } catch (_) {}
+      fileInput.click();
+    }
+    async function importSelectedFile(file) {
+      if (!file) return;
+      pushSnapshot(`Before importing ${file.name}`);
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      try {
+        let extracted = '';
+        if (ext === 'docx') {
+          const buf = await file.arrayBuffer();
+          if (window.mammoth && typeof window.mammoth.extractRawText === 'function') {
+            const res = await window.mammoth.extractRawText({ arrayBuffer: buf });
+            extracted = res.value || '';
+          } else {
+            throw new Error('Word (.docx) parser did not load.');
+          }
+        } else if (ext === 'html' || ext === 'htm') {
+          const rawHtml = await file.text();
+          const tmp = document.createElement('div');
+          tmp.innerHTML = rawHtml;
+          extracted = (tmp.innerText || tmp.textContent || '').trim();
+        } else {
+          extracted = await file.text();
+        }
+        editor.value = extracted;
+        if (!docTitle.value.trim()) {
+          docTitle.value = file.name.replace(/\.[^/.]+$/, '');
+        }
         document.getElementById('fileIndicator').textContent = `Active file: ${file.name}`;
-        state.queue = []; renderQueue(); updateCounts(); showToast(`Imported "${file.name}"`);
-      } catch (err) { showToast('Could not read file: ' + err.message); }
+        state.queue = []; renderQueue(); updateCounts();
+        showToast(`Imported "${file.name}"`);
+      } catch (err) {
+        showToast('Could not read file: ' + err.message);
+      }
+    }
+    document.getElementById('importBtn').addEventListener('click', openFilePicker);
+    document.getElementById('sheetImportBtn').addEventListener('click', openFilePicker);
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files && e.target.files[0];
+      await importSelectedFile(file);
       e.target.value = '';
+    });
+    paperSheet.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      paperSheet.classList.add('drag-over');
+    });
+    paperSheet.addEventListener('dragleave', () => {
+      paperSheet.classList.remove('drag-over');
+    });
+    paperSheet.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      paperSheet.classList.remove('drag-over');
+      const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) await importSelectedFile(file);
     });
     document.getElementById('exportBtn').addEventListener('click', async () => {
       const format = document.getElementById('exportFormat').value;
@@ -756,7 +811,7 @@
         const vClass = entry.verdict === 'confirmed' ? 'verdict-confirmed' : (entry.verdict === 'partial' ? 'verdict-partial' : 'verdict-unverified');
         const vLabel = entry.verdict === 'confirmed' ? 'Confirmed Fact' : (entry.verdict === 'partial' ? 'Needs Context / Check' : 'Unverified / Claim');
         const linksHtml = (entry.links || []).map(l => `<a class="source-link ${l.grounded ? 'grounded' : ''}" href="${escapeHtml(l.url)}" target="_blank" rel="noopener noreferrer">${l.grounded ? '★ ' : ''}${escapeHtml(l.label)} ↗</a>`).join('');
-        const citeBtnHtml = entry.suggestedCitation ? `<button class="btn btn-xs" data-cite-idx="${idx}">Queue Citation in Draft</button>` : '';
+        const citeBtnHtml = entry.suggestedCitation ? `<button type="button" class="btn btn-xs" data-cite-idx="${idx}">Queue Citation in Draft</button>` : '';
         card.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;"><strong style="font-size:11.5px;">Statement #${idx + 1}</strong><span class="verdict-pill ${vClass}">${vLabel}</span></div><div style="font-family:var(--font-serif);font-size:13px;color:var(--ink-primary);">“${escapeHtml(entry.claim)}”</div><div style="font-size:11.5px;color:var(--ink-secondary);line-height:1.45;">${escapeHtml(entry.assessment)}</div>${entry.referenceNote ? `<div style="font-size:11px;color:var(--ink-muted);"><strong>Reference / Footnote Clue:</strong> ${escapeHtml(entry.referenceNote)}</div>` : ''}<div class="source-link-row">${linksHtml}</div>${citeBtnHtml ? `<div style="margin-top:4px;">${citeBtnHtml}</div>` : ''}`;
         const citeBtn = card.querySelector('[data-cite-idx]');
         if (citeBtn) {
@@ -890,7 +945,7 @@
         const start = Math.max(0, idx - 28); const end = Math.min(text.length, idx + foundWord.length + 28);
         const beforeCtx = text.slice(start, end);
         const row = document.createElement('div'); row.className = 'match-item';
-        row.innerHTML = `<div>…${escapeHtml(text.slice(start, idx))}<mark>${escapeHtml(foundWord)}</mark>${escapeHtml(text.slice(idx + foundWord.length, end))}…</div><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:11px;color:var(--ink-muted);">Match #${count}</span><button class="btn btn-xs">Queue This One</button></div>`;
+        row.innerHTML = `<div>…${escapeHtml(text.slice(start, idx))}<mark>${escapeHtml(foundWord)}</mark>${escapeHtml(text.slice(idx + foundWord.length, end))}…</div><div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:11px;color:var(--ink-muted);">Match #${count}</span><button type="button" class="btn btn-xs">Queue This One</button></div>`;
         row.querySelector('button').addEventListener('click', () => {
           const rep = document.getElementById('replaceWordInput').value.trim();
           if (!rep) { showToast('Enter a replacement word first.'); return; }
@@ -915,7 +970,7 @@
       const container = document.getElementById('publicationsList'); container.innerHTML = '';
       state.publications.forEach((pub, idx) => {
         const row = document.createElement('div'); row.className = 'pub-item';
-        row.innerHTML = `<label style="display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" ${pub.enabled ? 'checked' : ''} /><span><strong>${escapeHtml(pub.name)}</strong> <span style="color:var(--ink-muted);">(${escapeHtml(pub.domain)})</span></span></label>${idx >= 5 ? '<button class="btn btn-xs">×</button>' : ''}`;
+        row.innerHTML = `<label style="display:flex;align-items:center;gap:7px;cursor:pointer;"><input type="checkbox" ${pub.enabled ? 'checked' : ''} /><span><strong>${escapeHtml(pub.name)}</strong> <span style="color:var(--ink-muted);">(${escapeHtml(pub.domain)})</span></span></label>${idx >= 5 ? '<button type="button" class="btn btn-xs">×</button>' : ''}`;
         row.querySelector('input').addEventListener('change', (e) => { pub.enabled = e.target.checked; saveLocal(); });
         const delBtn = row.querySelector('button');
         if (delBtn) delBtn.addEventListener('click', () => { state.publications.splice(idx, 1); saveLocal(); renderPublications(); });
